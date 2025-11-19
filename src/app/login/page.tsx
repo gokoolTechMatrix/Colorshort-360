@@ -66,6 +66,18 @@ export default function LoginPage() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unable to sign in.";
+      const roleSlug = getRoleFromEmail(email);
+      if (
+        roleSlug &&
+        typeof message === "string" &&
+        message.toLowerCase().includes("invalid login credentials")
+      ) {
+        const ensured = await ensureUser(email, password);
+        if (ensured) {
+          await handleSubmit(event);
+          return;
+        }
+      }
       setStatus({
         type: "error",
         message,
@@ -92,6 +104,22 @@ export default function LoginPage() {
       return payload.role ?? "";
     } catch {
       return "";
+    }
+  };
+
+  const ensureUser = async (email: string, password: string) => {
+    try {
+      const response = await fetch("/api/ensure-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      const payload = await response.json();
+      return response.ok && payload?.ok;
+    } catch {
+      return false;
     }
   };
 
