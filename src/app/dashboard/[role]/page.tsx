@@ -2,6 +2,7 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getRoleFromEmail } from "@/lib/role-map";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
@@ -14,12 +15,98 @@ const slugifyRole = (role?: string | null) =>
   role?.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") ??
   "";
 
-const baseSidebarLinks = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Reports & Exports", href: "/reports" },
-  { label: "Inventory", href: "/inventory" },
-  { label: "Clients", href: "/clients" },
-  { label: "Support", href: "/support" },
+type SidebarIconProps = { className?: string };
+
+type SidebarLink = {
+  label: string;
+  href: string;
+  Icon: (props: SidebarIconProps) => ReactElement;
+};
+
+const DashboardIcon = ({ className }: SidebarIconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M3 12h8V3H3v9zM13 3h8v6h-8zM13 13h8v8h-8zM3 15h8v6H3z" />
+  </svg>
+);
+
+const ReportsIcon = ({ className }: SidebarIconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M5 4h14v16H5z" />
+    <path d="M9 8h6M9 12h6M9 16h3" />
+  </svg>
+);
+
+const InventoryIcon = ({ className }: SidebarIconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M3 7l9-4 9 4-9 4-9-4z" />
+    <path d="M3 12l9 4 9-4" />
+    <path d="M3 17l9 4 9-4" />
+  </svg>
+);
+
+const ClientsIcon = ({ className }: SidebarIconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <circle cx="9" cy="8" r="3" />
+    <circle cx="17" cy="10" r="3" />
+    <path d="M4 20a5 5 0 0 1 10 0" />
+    <path d="M14 20a4 4 0 0 1 8 0" />
+  </svg>
+);
+
+const SupportIcon = ({ className }: SidebarIconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7a5 5 0 0 0-5 5v1a3 3 0 0 0 3 3h2" />
+    <path d="M15 7a5 5 0 0 1 5 5v1a3 3 0 0 1-3 3h-2v1" />
+  </svg>
+);
+
+const baseSidebarLinks: SidebarLink[] = [
+  { label: "Dashboard", href: "/dashboard", Icon: DashboardIcon },
+  { label: "Reports & Exports", href: "/reports", Icon: ReportsIcon },
+  { label: "Inventory", href: "/inventory", Icon: InventoryIcon },
+  { label: "Clients", href: "/clients", Icon: ClientsIcon },
+  { label: "Support", href: "/support", Icon: SupportIcon },
 ];
 
 type DashboardProps = { profileName: string };
@@ -180,7 +267,15 @@ export default function RoleDashboardPage() {
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-white via-slate-50 to-indigo-50">
       <aside className="hidden w-72 flex-col border-r border-slate-200 bg-white/95 p-6 lg:flex">
-        <div className="mb-6 text-sm">
+        <div className="mb-6 flex flex-col items-center text-center text-sm">
+          <Image
+            src="/image.png"
+            alt="Colorsort360 logo"
+            width={80}
+            height={80}
+            priority
+            className="mb-3 h-20 w-20 rounded-2xl border border-slate-100 object-contain p-2"
+          />
           <p className="text-xs uppercase tracking-[0.4em] text-indigo-400">
             Colorsort360
           </p>
@@ -189,20 +284,29 @@ export default function RoleDashboardPage() {
           </p>
         </div>
         <nav className="flex flex-col gap-1 text-sm font-medium text-slate-600">
-          {baseSidebarLinks.map((link) => (
-            <button
-              key={link.label}
-              onClick={() => link.href !== "#" && router.push(link.href)}
-              className={`flex items-center gap-3 rounded-xl px-4 py-3 transition hover:bg-slate-100 ${
-                link.href === "/dashboard"
-                  ? "bg-indigo-50 text-indigo-600"
-                  : ""
-              }`}
-            >
-              <span className="h-2 w-2 rounded-full bg-indigo-300" />
-              <span>{link.label}</span>
-            </button>
-          ))}
+          {baseSidebarLinks.map(({ Icon, ...link }) => {
+            const isActive = link.href === "/dashboard";
+            return (
+              <button
+                key={link.label}
+                onClick={() => link.href !== "#" && router.push(link.href)}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 transition hover:bg-slate-100 ${
+                  isActive ? "bg-indigo-50 text-indigo-600" : ""
+                }`}
+              >
+                <span
+                  className={`flex h-10 w-10 items-center justify-center rounded-2xl border text-slate-500 ${
+                    isActive
+                      ? "border-indigo-100 bg-indigo-50 text-indigo-600"
+                      : "border-slate-100 bg-white"
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span>{link.label}</span>
+              </button>
+            );
+          })}
         </nav>
         <button
           onClick={handleLogout}
@@ -258,21 +362,28 @@ function KpiGrid({
 }: {
   items: Array<{ label: string; value: string; subLabel?: string }>;
 }) {
+  const gradients = [
+    "from-indigo-100 via-white to-indigo-50",
+    "from-rose-100 via-white to-rose-50",
+    "from-amber-100 via-white to-amber-50",
+    "from-emerald-100 via-white to-emerald-50",
+  ];
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {items.map((item) => (
+      {items.map((item, index) => (
         <div
           key={item.label}
-          className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm shadow-slate-100"
+          className={`group rounded-3xl border border-white/60 bg-gradient-to-br ${gradients[index % gradients.length]} p-5 shadow-lg shadow-slate-100 transition hover:-translate-y-1 hover:shadow-xl`}
         >
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
             {item.label}
           </p>
-          <p className="mt-3 text-2xl font-semibold text-slate-900">
+          <p className="mt-3 text-3xl font-semibold text-slate-900">
             {item.value}
           </p>
           {item.subLabel && (
-            <p className="mt-1 text-sm text-slate-500">{item.subLabel}</p>
+            <p className="mt-1 text-sm text-slate-600">{item.subLabel}</p>
           )}
         </div>
       ))}
@@ -290,7 +401,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[32px] border border-slate-100 bg-white/90 p-6 shadow-[0_25px_85px_rgba(15,23,42,0.08)]">
+    <section className="rounded-[32px] border border-slate-100 bg-white/90 p-6 shadow-[0_25px_85px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_30px_110px_rgba(15,23,42,0.12)]">
       <div className="mb-4 space-y-1">
         <p className="text-sm font-semibold text-slate-700">{title}</p>
         {subtitle && (
@@ -310,7 +421,7 @@ function List({ items }: { items: string[] }) {
       {items.map((item, index) => (
         <li
           key={index}
-          className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
+          className="rounded-2xl border border-white/70 bg-gradient-to-r from-slate-50 to-white px-4 py-3 shadow-sm shadow-slate-100"
         >
           {item}
         </li>
@@ -320,12 +431,18 @@ function List({ items }: { items: string[] }) {
 }
 
 function QuickActions({ actions }: { actions: string[] }) {
+  const actionPalette = [
+    "from-indigo-200 to-indigo-400 text-indigo-900",
+    "from-rose-200 to-rose-400 text-rose-900",
+    "from-amber-200 to-amber-400 text-amber-900",
+    "from-emerald-200 to-emerald-400 text-emerald-900",
+  ];
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {actions.map((action) => (
+      {actions.map((action, index) => (
         <button
           key={action}
-          className="rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-100"
+          className={`rounded-2xl bg-gradient-to-r ${actionPalette[index % actionPalette.length]} px-4 py-3 text-sm font-semibold shadow-md shadow-slate-200 transition hover:-translate-y-[2px] hover:shadow-lg`}
         >
           {action}
         </button>
@@ -521,14 +638,16 @@ function SalesCoordinatorDashboard({ profileName }: DashboardProps) {
       >
         <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-5">
           {[
-            { stage: "New", value: 12 },
-            { stage: "Contacted", value: 20 },
-            { stage: "Quotation Sent", value: 8 },
-            { stage: "Negotiation", value: 6 },
-            { stage: "Closed", value: 4 },
+            { stage: "New", value: 12, gradient: "from-indigo-100 to-indigo-300" },
+            { stage: "Contacted", value: 20, gradient: "from-sky-100 to-sky-300" },
+            { stage: "Quotation Sent", value: 8, gradient: "from-amber-100 to-amber-300" },
+            { stage: "Negotiation", value: 6, gradient: "from-purple-100 to-purple-300" },
+            { stage: "Closed", value: 4, gradient: "from-emerald-100 to-emerald-300" },
           ].map((item) => (
             <div key={item.stage} className="text-center">
-              <div className="mx-auto mb-2 h-16 w-16 rounded-2xl bg-gradient-to-br from-rose-100 to-rose-300 p-5 text-xl font-semibold text-rose-600 shadow-inner shadow-white">
+              <div
+                className={`mx-auto mb-2 h-16 w-16 rounded-2xl bg-gradient-to-br ${item.gradient} p-5 text-xl font-semibold text-slate-800 shadow-inner shadow-white`}
+              >
                 {item.value}
               </div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
