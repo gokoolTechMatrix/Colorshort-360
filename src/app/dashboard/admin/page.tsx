@@ -1,10 +1,11 @@
 "use client";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import type { Session } from "@supabase/supabase-js";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+const SUPER_ADMIN_EMAIL =
+  process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() ?? "admin@qube.com";
 
 const mockStats = [
   { label: "Total Sales", value: "₹2.45 Cr", change: "+12.4%" },
@@ -86,7 +87,7 @@ const sidebarLinks = [
   },
   {
     label: "Product List",
-    href: "#",
+    href: "/product-list",
     icon: (
       <svg
         viewBox="0 0 24 24"
@@ -195,7 +196,26 @@ export default function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0],
   );
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const router = useRouter();
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      const user = data.session?.user;
+      const role =
+        (user?.user_metadata?.role as string | undefined)?.toLowerCase() ?? "";
+      const superAdmin =
+        user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
+        role === "super_admin";
+      setIsSuperAdmin(superAdmin);
+    });
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -233,20 +253,25 @@ export default function DashboardPage() {
         </div>
 
         <nav className="flex flex-col gap-1 text-sm font-medium text-slate-600">
-          {sidebarLinks.map((link) => (
-            <button
-              key={link.label}
-              className={`flex items-center gap-3 rounded-xl px-4 py-3 transition hover:bg-slate-100 ${
-                link.label === "Dashboard Overview"
-                  ? "bg-indigo-50 text-indigo-600"
-                  : ""
-              }`}
-              onClick={() => link.href !== "#" && router.push(link.href)}
-            >
-              <span className="text-slate-400">{link.icon}</span>
-              {!collapsed && <span>{link.label}</span>}
-            </button>
-          ))}
+          {sidebarLinks
+            .filter(
+              (link) =>
+                link.label !== "Product List" || isSuperAdmin,
+            )
+            .map((link) => (
+              <button
+                key={link.label}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 transition hover:bg-slate-100 ${
+                  link.label === "Dashboard Overview"
+                    ? "bg-indigo-50 text-indigo-600"
+                    : ""
+                }`}
+                onClick={() => link.href !== "#" && router.push(link.href)}
+              >
+                <span className="text-slate-400">{link.icon}</span>
+                {!collapsed && <span>{link.label}</span>}
+              </button>
+            ))}
         </nav>
 
         <button

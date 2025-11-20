@@ -1,6 +1,7 @@
 "use client";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -124,18 +125,36 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-white via-slate-50 to-indigo-50">
+    <div
+      className="flex min-h-screen flex-col"
+      style={{
+        background:
+          "radial-gradient(circle at 25% 20%, rgba(186, 230, 253, 0.9), transparent 42%), radial-gradient(circle at 65% 10%, rgba(167, 139, 250, 0.75), transparent 42%), radial-gradient(circle at 30% 70%, rgba(59, 130, 246, 0.85), transparent 50%), radial-gradient(circle at 75% 65%, rgba(255, 255, 255, 0.65), transparent 40%), linear-gradient(135deg, rgba(59, 130, 246, 0.85) 0%, rgba(129, 140, 248, 0.8) 35%, rgba(196, 181, 253, 0.8) 65%, rgba(239, 246, 255, 0.95) 100%)",
+      }}
+    >
       <div className="mx-auto grid w-full max-w-6xl flex-1 items-center gap-12 px-6 py-16 lg:grid-cols-2">
         <section className="space-y-6 text-slate-700">
-          <p className="text-sm uppercase tracking-[0.4em] text-indigo-400">
-            Colorsort360
-          </p>
-          <h1 className="text-4xl font-semibold text-slate-900">
-            Welcome back. Access the operational dashboard securely.
-          </h1>
+          <div className="rounded-3xl border border-indigo-100/80 bg-gradient-to-br from-indigo-100 via-white to-rose-100 p-6 shadow-md backdrop-blur">
+            <p className="text-sm uppercase tracking-[0.4em] text-indigo-400">
+              Colorsort360
+            </p>
+            <h1 className="mt-2 text-4xl font-semibold text-slate-900">
+              Welcome back. Access the operational dashboard securely.
+            </h1>
+          </div>
         </section>
 
         <section className="rounded-[32px] border border-slate-100 bg-white/90 p-10 shadow-[0_30px_80px_rgba(15,23,42,0.08)]">
+          <div className="mb-6 flex flex-col items-center gap-3">
+            <Image
+              src="/image.png"
+              alt="Colorsort360 logo"
+              width={160}
+              height={160}
+              priority
+              className="h-32 w-32 object-contain"
+            />
+          </div>
           <div className="mb-8 space-y-2">
             <p className="text-xs uppercase tracking-[0.3em] text-indigo-400">
               Secure login
@@ -143,10 +162,6 @@ export default function LoginPage() {
             <h2 className="text-2xl font-semibold text-slate-900">
               Sign in to your workspace
             </h2>
-            <p className="text-sm text-slate-500">
-              Email should always be the phone number you registered with +{" "}
-              <strong>@gmail.com</strong>.
-            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
