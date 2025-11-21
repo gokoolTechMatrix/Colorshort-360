@@ -1,7 +1,6 @@
 "use client";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 const SUPER_ADMIN_EMAIL =
@@ -151,6 +150,23 @@ const sidebarLinks = [
       </svg>
     ),
   },
+  {
+    label: "Settings",
+    href: "/admin-settings",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-5 w-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      >
+        <path d="m4 6 2-2 2 2h8l2-2 2 2-2 2 2 2-2 2 2 2-2 2-2-2h-8l-2 2-2-2 2-2-2-2 2-2-2-2Z" />
+        <circle cx="12" cy="12" r="2.5" />
+      </svg>
+    ),
+  },
 ];
 
 const topOrders = [
@@ -193,6 +209,7 @@ const topOrders = [
 
 export default function DashboardPage() {
   const [collapsed, setCollapsed] = useState(false);
+  const [companyLogo, setCompanyLogo] = useState("/image.png");
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0],
   );
@@ -217,12 +234,28 @@ export default function DashboardPage() {
     };
   }, [supabase]);
 
+  useEffect(() => {
+    fetch("/api/company-settings")
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          settings?: { logo_url?: string };
+        };
+        if (payload?.settings?.logo_url) {
+          setCompanyLogo(payload.settings.logo_url);
+        }
+      })
+      .catch(() => {
+        // best-effort logo
+      });
+  }, []);
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       <aside
         className={`relative flex ${
           collapsed ? "w-24" : "w-72"
-        } flex-col border-r border-slate-200 bg-white/95 p-6 transition-all`}
+        } flex-col border-r border-slate-200 bg-white/95 px-6 pb-6 pt-14 transition-all`}
       >
         <button
           aria-label="Toggle sidebar"
@@ -242,13 +275,10 @@ export default function DashboardPage() {
         </button>
 
         <div className="flex items-center justify-center pb-6">
-          <Image
-            src="/image.png"
+          <img
+            src={companyLogo}
             alt="Color Sort 360 logo"
-            width={collapsed ? 56 : 92}
-            height={collapsed ? 56 : 92}
-            className="object-contain"
-            priority
+            className={`object-contain ${collapsed ? "h-14 w-14" : "h-20 w-20"}`}
           />
         </div>
 
@@ -256,7 +286,9 @@ export default function DashboardPage() {
           {sidebarLinks
             .filter(
               (link) =>
-                link.label !== "Product List" || isSuperAdmin,
+                (link.label !== "Product List" &&
+                  link.label !== "Settings") ||
+                isSuperAdmin,
             )
             .map((link) => (
               <button

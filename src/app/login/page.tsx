@@ -1,10 +1,9 @@
 "use client";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getRoleFromEmail } from "@/lib/role-map";
 
 const superAdminEmail =
@@ -20,11 +19,28 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [companyLogo, setCompanyLogo] = useState("/image.png");
   const [status, setStatus] = useState<{
     type: "error" | "success";
     message: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/company-settings")
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          settings?: { logo_url?: string };
+        };
+        if (payload?.settings?.logo_url) {
+          setCompanyLogo(payload.settings.logo_url);
+        }
+      })
+      .catch(() => {
+        // best-effort logo fetch
+      });
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -146,12 +162,9 @@ export default function LoginPage() {
 
         <section className="rounded-[32px] border border-slate-100 bg-white/90 p-10 shadow-[0_30px_80px_rgba(15,23,42,0.08)]">
           <div className="mb-6 flex flex-col items-center gap-3">
-            <Image
-              src="/image.png"
+            <img
+              src={companyLogo}
               alt="Colorsort360 logo"
-              width={160}
-              height={160}
-              priority
               className="h-32 w-32 object-contain"
             />
           </div>

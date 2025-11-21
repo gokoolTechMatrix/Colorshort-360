@@ -2,7 +2,6 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   type ReactNode,
@@ -89,13 +88,12 @@ const sidebarLinks = [
     ),
   },
   {
-    label: "Change Password",
+    label: "Settings",
     href: "/admin-settings",
     icon: iconWrapper(
       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-        <path d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
-        <path d="M7 17V7a5 5 0 0 1 10 0v10" />
-        <path d="M5 17h14v4H5v-4Z" />
+        <path d="m4 6 2-2 2 2h8l2-2 2 2-2 2 2 2-2 2 2 2-2 2-2-2h-8l-2 2-2-2 2-2-2-2 2-2-2-2Z" />
+        <circle cx="12" cy="12" r="2.5" />
       </svg>,
     ),
   },
@@ -109,6 +107,7 @@ export default function UserCreationPage() {
   const router = useRouter();
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const [collapsed, setCollapsed] = useState(false);
+  const [companyLogo, setCompanyLogo] = useState("/image.png");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState(roles[0]);
@@ -203,6 +202,22 @@ export default function UserCreationPage() {
       subscription?.subscription.unsubscribe();
     };
   }, [supabase, router]);
+
+  useEffect(() => {
+    fetch("/api/company-settings")
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          settings?: { logo_url?: string };
+        };
+        if (payload?.settings?.logo_url) {
+          setCompanyLogo(payload.settings.logo_url);
+        }
+      })
+      .catch(() => {
+        // best-effort logo
+      });
+  }, []);
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -357,7 +372,7 @@ export default function UserCreationPage() {
     <>
       <div className="flex min-h-screen bg-white">
         <aside
-          className={`relative hidden flex-col border-r border-slate-200 bg-white/95 p-6 transition-all lg:flex ${
+          className={`relative hidden flex-col border-r border-slate-200 bg-white/95 px-6 pb-6 pt-14 transition-all lg:flex ${
             collapsed ? "w-24" : "w-72"
           }`}
       >
@@ -379,13 +394,10 @@ export default function UserCreationPage() {
         </button>
 
         <div className="flex items-center justify-center pb-6">
-          <Image
-            src="/image.png"
+          <img
+            src={companyLogo}
             alt="Color Sort 360 logo"
-            width={collapsed ? 56 : 92}
-            height={collapsed ? 56 : 92}
-            className="object-contain"
-            priority
+            className={`object-contain ${collapsed ? "h-14 w-14" : "h-20 w-20"}`}
           />
         </div>
 

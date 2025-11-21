@@ -3,7 +3,7 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type TrustFlag = "gold" | "silver" | "bronze";
 
@@ -67,11 +67,141 @@ export default function AdminSettingsPage() {
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [settings, setSettings] = useState<CompanySettings>(EMPTY_SETTINGS);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const [isEditingSettings, setIsEditingSettings] = useState(true);
+  const [justSaved, setJustSaved] = useState(false);
+  const [isEditingTeam, setIsEditingTeam] = useState(true);
+  const [justSavedTeam, setJustSavedTeam] = useState(false);
+  const [isSavingTeamAll, setIsSavingTeamAll] = useState(false);
+  const [isRefreshingTeam, setIsRefreshingTeam] = useState(false);
+  const [editingRows, setEditingRows] = useState<Set<string>>(new Set());
+  const [collapsed, setCollapsed] = useState(false);
+  const [companyLogo, setCompanyLogo] = useState("/image.png");
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [savingMemberId, setSavingMemberId] = useState<string | null>(null);
   const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const settingsDirtyRef = useRef(false);
+  const sidebarLinks = [
+    {
+      label: "Dashboard Overview",
+      href: "/dashboard",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        >
+          <path d="M4 13h6V4H4v9Zm10 7h6v-8h-6v8ZM4 20h6v-5H4v5ZM14 4v5h6V4h-6Z" />
+        </svg>
+      ),
+    },
+    {
+      label: "User Creation",
+      href: "/user-creation",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        >
+          <path d="M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm-9 13v-1a5 5 0 0 1 5-5h2" />
+          <path d="M16 17h6m-3-3v6" />
+        </svg>
+      ),
+    },
+    {
+      label: "Product List",
+      href: "/product-list",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        >
+          <path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z" />
+        </svg>
+      ),
+    },
+    {
+      label: "Stock Insights",
+      href: "#",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        >
+          <path d="m4 15 4-4 4 4 6-6" />
+          <path d="M18 9h4v4" />
+        </svg>
+      ),
+    },
+    {
+      label: "Client Registry",
+      href: "#",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        >
+          <path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm-4 7c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5Z" />
+        </svg>
+      ),
+    },
+    {
+      label: "Reports & Exports",
+      href: "#",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        >
+          <path d="M7 4h10l4 4v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
+          <path d="M7 10h10M7 14h6" />
+        </svg>
+      ),
+    },
+    {
+      label: "Settings",
+      href: "/admin-settings",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        >
+          <path d="m4 6 2-2 2 2h8l2-2 2 2-2 2 2 2-2 2 2 2-2 2-2-2h-8l-2 2-2-2 2-2-2-2 2-2-2-2Z" />
+          <circle cx="12" cy="12" r="2.5" />
+        </svg>
+      ),
+    },
+  ];
 
   const fetchCompanyData = async () => {
     setIsLoadingSettings(true);
@@ -86,7 +216,15 @@ export default function AdminSettingsPage() {
         settings: CompanySettings | null;
         team: TeamMember[];
       };
-      setSettings(payload.settings ?? EMPTY_SETTINGS);
+      const incomingSettings = payload.settings ?? EMPTY_SETTINGS;
+      if (incomingSettings.logo_url) {
+        setCompanyLogo(incomingSettings.logo_url);
+      }
+      setSettings((prev) =>
+        settingsDirtyRef.current
+          ? { ...incomingSettings, ...prev }
+          : incomingSettings,
+      );
       setTeamMembers(payload.team ?? []);
     } catch (error) {
       const message =
@@ -145,6 +283,7 @@ export default function AdminSettingsPage() {
     key: K,
     value: CompanySettings[K],
   ) => {
+    settingsDirtyRef.current = true;
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -167,6 +306,9 @@ export default function AdminSettingsPage() {
         type: "success",
         message: "Company settings saved.",
       });
+      settingsDirtyRef.current = false;
+      setJustSaved(true);
+      setIsEditingSettings(false);
       await fetchCompanyData();
     } catch (error) {
       const message =
@@ -234,6 +376,40 @@ export default function AdminSettingsPage() {
       });
     } finally {
       setSavingMemberId(null);
+    }
+  };
+
+  const saveAllTeamMembers = async () => {
+    setIsSavingTeamAll(true);
+    setStatus(null);
+    try {
+      for (const member of teamMembers) {
+        const response = await fetch("/api/company-settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ teamMember: member }),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.message ?? "Unable to save team member.");
+        }
+      }
+      setStatus({
+        type: "success",
+        message: "Team saved.",
+      });
+      setJustSavedTeam(true);
+      setIsEditingTeam(false);
+      await fetchCompanyData();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to save team.";
+      setStatus({
+        type: "error",
+        message,
+      });
+    } finally {
+      setIsSavingTeamAll(false);
     }
   };
 
@@ -327,35 +503,105 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-12">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-inner shadow-slate-200">
-              <img
-                src={logoSrc}
-                alt="Company logo"
-                className="h-full w-full object-contain"
-              />
+      <aside
+        className={`relative hidden flex-col border-r border-slate-200 bg-white/95 px-6 pb-6 pt-14 shadow-sm lg:flex ${
+          collapsed ? "w-24" : "w-72"
+        }`}
+      >
+        <button
+          aria-label="Toggle sidebar"
+          onClick={() => setCollapsed((prev) => !prev)}
+          className="absolute right-3 top-3 rounded-full border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm transition hover:text-indigo-500"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          >
+            <path d="M4 6h16M8 12h12M4 18h16" />
+          </svg>
+        </button>
+
+        <div className="flex items-center justify-center pb-6">
+          <img
+            src={logoSrc}
+            alt="Company logo"
+            className={`object-contain ${collapsed ? "h-14 w-14" : "h-20 w-20"}`}
+          />
+        </div>
+
+        <nav className="flex flex-col gap-1 text-sm font-medium text-slate-600">
+          {sidebarLinks.map((link) => (
+            <button
+              key={link.label}
+              className={`flex items-center gap-3 rounded-xl px-4 py-3 transition hover:bg-slate-100 ${
+                link.href === "/admin-settings" ? "bg-indigo-50 text-indigo-600" : ""
+              }`}
+              onClick={() => router.push(link.href)}
+            >
+              <span className="text-slate-400">{link.icon}</span>
+              {!collapsed && <span>{link.label}</span>}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <main className="flex-1 px-4 py-8 md:px-8">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-inner shadow-slate-200">
+                <img
+                  src={logoSrc}
+                  alt="Company logo"
+                  className="h-full w-full object-contain"
+                />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-indigo-400">
+                  Admin only
+                </p>
+                <h1 className="text-3xl font-semibold text-slate-900">
+                  Settings
+                </h1>
+                <p className="text-sm text-slate-600">
+                  Company profile, compliance, team, and security.
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-indigo-400">
-                Admin only
-              </p>
-              <h1 className="text-3xl font-semibold text-slate-900">
-                Settings
-              </h1>
-              <p className="text-sm text-slate-600">
-                Company profile, compliance, team, and security.
-              </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => router.back()}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-100"
+              >
+                Back
+              </button>
+              <button
+                onClick={() => {
+                  settingsDirtyRef.current = false;
+                  setIsRefreshing(true);
+                  void fetchCompanyData().finally(() => setIsRefreshing(false));
+                }}
+                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-100"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className={`h-4 w-4 text-slate-500 ${isRefreshing ? "animate-spin" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                >
+                  <path d="M4 4v6h6M20 20v-6h-6" />
+                  <path d="M5 13a7 7 0 0 0 12 3M19 11A7 7 0 0 0 7.05 8.05" />
+                </svg>
+                Refresh
+              </button>
             </div>
           </div>
-          <button
-            onClick={() => router.back()}
-            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-100"
-          >
-            Back
-          </button>
-        </div>
 
         {status && (
           <p
@@ -406,6 +652,7 @@ export default function AdminSettingsPage() {
                   onChange={(event) =>
                     handleSettingsChange("company_name", event.target.value)
                   }
+                  disabled={!isEditingSettings}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
@@ -418,6 +665,7 @@ export default function AdminSettingsPage() {
                   onChange={(event) =>
                     handleSettingsChange("industry_type", event.target.value)
                   }
+                  disabled={!isEditingSettings}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
@@ -430,9 +678,54 @@ export default function AdminSettingsPage() {
                   onChange={(event) =>
                     handleSettingsChange("description", event.target.value)
                   }
+                  disabled={!isEditingSettings}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
+            </div>
+
+            <div className="flex justify-center gap-3 pt-2">
+              <button
+                onClick={handleSettingsSave}
+                disabled={isSavingSettings || isLoadingSettings || !isEditingSettings}
+                className={`rounded-full px-6 py-3 text-sm font-semibold shadow-md shadow-indigo-200 transition ${
+                  isEditingSettings
+                    ? "bg-indigo-600 text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
+                    : "bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                {isSavingSettings
+                  ? "Saving..."
+                  : isEditingSettings
+                    ? "Save company details"
+                    : (
+                      <span className="inline-flex items-center gap-2">
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4 text-emerald-600"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                        Saved
+                      </span>
+                    )}
+              </button>
+              {!isEditingSettings && (
+                <button
+                  onClick={() => {
+                    setIsEditingSettings(true);
+                    setJustSaved(false);
+                  }}
+                  className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50"
+                >
+                  Edit
+                </button>
+              )}
             </div>
           </div>
 
@@ -448,6 +741,7 @@ export default function AdminSettingsPage() {
                 onChange={(event) =>
                   handleSettingsChange("registered_address", event.target.value)
                 }
+                disabled={!isEditingSettings}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
               />
             </label>
@@ -459,6 +753,7 @@ export default function AdminSettingsPage() {
                 onChange={(event) =>
                   handleSettingsChange("operational_address", event.target.value)
                 }
+                disabled={!isEditingSettings}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
               />
             </label>
@@ -467,7 +762,7 @@ export default function AdminSettingsPage() {
 
         <section className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-md shadow-slate-100 lg:col-span-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.35em] text-indigo-400">
                   Compliance
@@ -476,13 +771,6 @@ export default function AdminSettingsPage() {
                   Company details
                 </h2>
               </div>
-              <button
-                onClick={handleSettingsSave}
-                disabled={isSavingSettings || isLoadingSettings}
-                className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSavingSettings ? "Saving..." : "Save settings"}
-              </button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -494,6 +782,7 @@ export default function AdminSettingsPage() {
                   onChange={(event) =>
                     handleSettingsChange("gst_number", event.target.value)
                   }
+                  disabled={!isEditingSettings}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
@@ -506,6 +795,7 @@ export default function AdminSettingsPage() {
                   onChange={(event) =>
                     handleSettingsChange("pan_number", event.target.value)
                   }
+                  disabled={!isEditingSettings}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
@@ -518,6 +808,7 @@ export default function AdminSettingsPage() {
                   onChange={(event) =>
                     handleSettingsChange("contact_email", event.target.value)
                   }
+                  disabled={!isEditingSettings}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
@@ -530,6 +821,7 @@ export default function AdminSettingsPage() {
                   onChange={(event) =>
                     handleSettingsChange("contact_phone", event.target.value)
                   }
+                  disabled={!isEditingSettings}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
@@ -542,9 +834,54 @@ export default function AdminSettingsPage() {
                   onChange={(event) =>
                     handleSettingsChange("contact_website", event.target.value)
                   }
+                  disabled={!isEditingSettings}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
+            </div>
+
+            <div className="flex justify-center gap-3 pt-2">
+              <button
+                onClick={handleSettingsSave}
+                disabled={isSavingSettings || isLoadingSettings || !isEditingSettings}
+                className={`rounded-full px-6 py-3 text-sm font-semibold shadow-md shadow-indigo-200 transition ${
+                  isEditingSettings
+                    ? "bg-indigo-600 text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
+                    : "bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                {isSavingSettings
+                  ? "Saving..."
+                  : isEditingSettings
+                    ? "Save settings"
+                    : (
+                      <span className="inline-flex items-center gap-2">
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4 text-emerald-600"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                        Saved
+                      </span>
+                    )}
+              </button>
+              {!isEditingSettings && (
+                <button
+                  onClick={() => {
+                    setIsEditingSettings(true);
+                    setJustSaved(false);
+                  }}
+                  className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50"
+                >
+                  Edit
+                </button>
+              )}
             </div>
           </div>
 
@@ -564,6 +901,7 @@ export default function AdminSettingsPage() {
                       event.target.value,
                     )
                   }
+                  disabled={!isEditingSettings}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
@@ -578,6 +916,7 @@ export default function AdminSettingsPage() {
                       event.target.value,
                     )
                   }
+                  disabled={!isEditingSettings}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
@@ -595,39 +934,76 @@ export default function AdminSettingsPage() {
                 Employees & badges
               </h2>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <button
-                onClick={() =>
-                  setTeamMembers((prev) => [
-                    ...prev,
-                    {
-                      id: undefined,
-                      name: "",
-                      employee_id: "",
-                      role: "",
-                      trust_flag: "gold",
-                    },
-                  ])
-                }
-                className="rounded-full bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-100"
+                onClick={() => {
+                  setIsRefreshingTeam(true);
+                  void fetchCompanyData().finally(() => setIsRefreshingTeam(false));
+                }}
+                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
               >
-                + Add member
-              </button>
-              <button
-                onClick={fetchCompanyData}
-                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
-              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className={`h-4 w-4 text-slate-500 ${isRefreshingTeam ? "animate-spin" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                >
+                  <path d="M4 4v6h6M20 20v-6h-6" />
+                  <path d="M5 13a7 7 0 0 0 12 3M19 11A7 7 0 0 0 7.05 8.05" />
+                </svg>
                 Refresh
               </button>
+              <button
+                onClick={saveAllTeamMembers}
+                disabled={isSavingTeamAll || savingMemberId !== null || deletingMemberId !== null || isRefreshingTeam}
+                className={`rounded-full px-5 py-3 text-sm font-semibold shadow-sm transition ${
+                  isEditingTeam
+                    ? "bg-indigo-600 text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
+                    : "bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                {isSavingTeamAll
+                  ? "Saving..."
+                  : isEditingTeam
+                    ? "Save team"
+                    : (
+                      <span className="inline-flex items-center gap-2">
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4 text-emerald-600"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                        Saved
+                      </span>
+                    )}
+              </button>
+              {!isEditingTeam && (
+                <button
+                  onClick={() => {
+                    setIsEditingTeam(true);
+                    setJustSavedTeam(false);
+                  }}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50"
+                >
+                  Edit
+                </button>
+              )}
             </div>
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-slate-100">
-            <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr_0.8fr] gap-1 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-1 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <span>Name</span>
               <span>Employee ID</span>
               <span>Role</span>
-              <span>Badge</span>
               <span>Actions</span>
             </div>
             <div className="divide-y divide-slate-100 bg-white">
@@ -639,10 +1015,11 @@ export default function AdminSettingsPage() {
               {teamMembers.map((member, index) => (
                 <div
                   key={member.id ?? `temp-${index}`}
-                  className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr_0.8fr] gap-3 px-4 py-4 text-sm text-slate-700"
+                  className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-3 px-4 py-4 text-sm text-slate-700"
                 >
                   <input
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                    disabled={!isEditingTeam}
                     value={member.name}
                     onChange={(event) =>
                       setTeamMembers((prev) =>
@@ -656,7 +1033,8 @@ export default function AdminSettingsPage() {
                     placeholder="Full name"
                   />
                   <input
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                    disabled={!isEditingTeam}
                     value={member.employee_id}
                     onChange={(event) =>
                       setTeamMembers((prev) =>
@@ -670,7 +1048,8 @@ export default function AdminSettingsPage() {
                     placeholder="ID"
                   />
                   <input
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                    disabled={!isEditingTeam}
                     value={member.role}
                     onChange={(event) =>
                       setTeamMembers((prev) =>
@@ -867,6 +1246,7 @@ export default function AdminSettingsPage() {
           </form>
         </section>
       </div>
+      </main>
     </div>
   );
 }

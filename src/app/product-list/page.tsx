@@ -4,8 +4,6 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-import Image from "next/image";
-
 import { useRouter } from "next/navigation";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -254,6 +252,40 @@ const SIDEBAR_LINKS = [
 
   },
 
+  {
+
+    label: "Settings",
+
+    href: "/admin-settings",
+
+    icon: (
+
+      <svg
+
+        viewBox="0 0 24 24"
+
+        className="h-5 w-5"
+
+        fill="none"
+
+        stroke="currentColor"
+
+        strokeWidth="1.8"
+
+        strokeLinecap="round"
+
+      >
+
+        <path d="m4 6 2-2 2 2h8l2-2 2 2-2 2 2 2-2 2 2 2-2 2-2-2h-8l-2 2-2-2 2-2-2-2 2-2-2-2Z" />
+
+        <circle cx="12" cy="12" r="2.5" />
+
+      </svg>
+
+    ),
+
+  },
+
 ];
 
 
@@ -285,6 +317,7 @@ export default function ProductListPage() {
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   const [collapsed, setCollapsed] = useState(false);
+  const [companyLogo, setCompanyLogo] = useState("/image.png");
 
   const [products, setProducts] = useState<ProductRow[]>([]);
 
@@ -406,6 +439,22 @@ export default function ProductListPage() {
     };
 
   }, [router, supabase]);
+
+  useEffect(() => {
+    fetch("/api/company-settings")
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          settings?: { logo_url?: string };
+        };
+        if (payload?.settings?.logo_url) {
+          setCompanyLogo(payload.settings.logo_url);
+        }
+      })
+      .catch(() => {
+        // best-effort logo
+      });
+  }, []);
 
 
 
@@ -574,7 +623,7 @@ export default function ProductListPage() {
       <div className="flex min-h-screen bg-slate-50">
 
         <aside
-          className={`relative flex ${collapsed ? "w-24" : "w-72"} flex-col border-r border-slate-200 bg-white/95 p-6 transition-all`}
+          className={`relative flex ${collapsed ? "w-24" : "w-72"} flex-col border-r border-slate-200 bg-white/95 px-6 pb-6 pt-14 transition-all`}
         >
 
           <button
@@ -612,22 +661,11 @@ export default function ProductListPage() {
 
 
           <div className="flex items-center justify-center pb-6">
-
-            <Image
-
-              src="/image.png"
-
+            <img
+              src={companyLogo}
               alt="Color Sort 360 logo"
-
-              width={collapsed ? 56 : 92}
-              height={collapsed ? 56 : 92}
-
-              className="object-contain"
-
-              priority
-
+              className={`object-contain ${collapsed ? "h-14 w-14" : "h-20 w-20"}`}
             />
-
           </div>
 
 
@@ -770,16 +808,12 @@ export default function ProductListPage() {
 
                 </button>
 
-                <button className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-
+                <button className="rounded-2xl border border-sky-700 bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-sky-200 transition hover:bg-sky-500">
                   Upload Bulk
-
                 </button>
 
-                <button className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-
+                <button className="rounded-2xl border border-emerald-700 bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-500">
                   Export CSV
-
                 </button>
 
               </div>
