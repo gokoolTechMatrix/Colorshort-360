@@ -2,13 +2,55 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+type TrustFlag = "gold" | "silver" | "bronze";
+
+type CompanySettings = {
+  id: string;
+  company_name: string;
+  logo_url: string;
+  registered_address: string;
+  operational_address: string;
+  gst_number: string;
+  pan_number: string;
+  industry_type: string;
+  contact_email: string;
+  contact_phone: string;
+  contact_website: string;
+  description: string;
+  financial_year_start: string;
+  financial_year_end: string;
+};
+
+type TeamMember = {
+  id?: string;
+  name: string;
+  employee_id: string;
+  role: string;
+  trust_flag: TrustFlag;
+};
+
+const EMPTY_SETTINGS: CompanySettings = {
+  id: "company",
+  company_name: "",
+  logo_url: "",
+  registered_address: "",
+  operational_address: "",
+  gst_number: "",
+  pan_number: "",
+  industry_type: "",
+  contact_email: "",
+  contact_phone: "",
+  contact_website: "",
+  description: "",
+  financial_year_start: "",
+  financial_year_end: "",
+};
+
 const SUPER_ADMIN_EMAIL =
-  process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() ??
-  "admin@qube.com";
+  process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() ?? "admin@qube.com";
 
 export default function AdminSettingsPage() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
@@ -23,13 +65,45 @@ export default function AdminSettingsPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  const [settings, setSettings] = useState<CompanySettings>(EMPTY_SETTINGS);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [savingMemberId, setSavingMemberId] = useState<string | null>(null);
+  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
+
+  const fetchCompanyData = async () => {
+    setIsLoadingSettings(true);
+    try {
+      const response = await fetch("/api/company-settings", {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error("Unable to load settings.");
+      }
+      const payload = (await response.json()) as {
+        settings: CompanySettings | null;
+        team: TeamMember[];
+      };
+      setSettings(payload.settings ?? EMPTY_SETTINGS);
+      setTeamMembers(payload.team ?? []);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to load settings.";
+      setStatus({
+        type: "error",
+        message,
+      });
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
     supabase.auth.getSession().then(async ({ data }) => {
-      if (!isMounted) {
-        return;
-      }
+      if (!isMounted) return;
       await hydrate(data.session ?? null);
     });
 
@@ -57,6 +131,7 @@ export default function AdminSettingsPage() {
         setIsCheckingAuth(false);
         return;
       }
+      await fetchCompanyData();
       setIsCheckingAuth(false);
     }
 
@@ -65,6 +140,132 @@ export default function AdminSettingsPage() {
       subscription?.subscription.unsubscribe();
     };
   }, [router, supabase]);
+
+  const handleSettingsChange = <K extends keyof CompanySettings>(
+    key: K,
+    value: CompanySettings[K],
+  ) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSettingsSave = async () => {
+    setStatus(null);
+    setIsSavingSettings(true);
+    try {
+      const response = await fetch("/api/company-settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ settings }),
+      });
+      if (!response.ok) {
+        const payload = await response.json();
+        throw new Error(payload?.message ?? "Unable to save settings.");
+      }
+      setStatus({
+        type: "success",
+        message: "Company settings saved.",
+      });
+      await fetchCompanyData();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to save settings.";
+      setStatus({
+        type: "error",
+        message,
+      });
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleLogoUpload = async (file: File) => {
+    setStatus(null);
+    setLogoUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/company-settings/logo", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.url) {
+        throw new Error(payload?.message ?? "Logo upload failed.");
+      }
+      handleSettingsChange("logo_url", payload.url as string);
+      setStatus({
+        type: "success",
+        message: "Logo uploaded.",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Logo upload failed.";
+      setStatus({
+        type: "error",
+        message,
+      });
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const upsertTeamMember = async (member: TeamMember) => {
+    setStatus(null);
+    setSavingMemberId(member.id ?? "new");
+    try {
+      const response = await fetch("/api/company-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teamMember: member }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.message ?? "Unable to save member.");
+      }
+      await fetchCompanyData();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to save member.";
+      setStatus({
+        type: "error",
+        message,
+      });
+    } finally {
+      setSavingMemberId(null);
+    }
+  };
+
+  const deleteTeamMember = async (memberId: string | undefined) => {
+    if (!memberId) {
+      setTeamMembers((prev) => prev.filter((member) => member.id));
+      return;
+    }
+    setStatus(null);
+    setDeletingMemberId(memberId);
+    try {
+      const response = await fetch("/api/company-settings", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: memberId }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.message ?? "Unable to delete member.");
+      }
+      await fetchCompanyData();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to delete member.";
+      setStatus({
+        type: "error",
+        message,
+      });
+    } finally {
+      setDeletingMemberId(null);
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -113,45 +314,434 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const logoSrc = settings.logo_url || "/image.png";
+
+
   if (isCheckingAuth) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 text-sm font-semibold text-slate-500">
-        Loading settings…
+        Loading settings...
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-white via-slate-50 to-indigo-50">
-      <div className="mx-auto flex w-full max-w-4xl flex-col px-6 py-16">
-        <div className="mb-10 flex items-center gap-3">
-          <Image
-            src="/image.png"
-            alt="Colorsort 360"
-            width={120}
-            height={120}
-            className="rounded-[32px] bg-white/80 p-3 shadow-inner shadow-slate-200"
-            priority
-          />
-        </div>
-        <div className="mb-8 flex items-center gap-3 text-sm text-slate-500">
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-12">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-inner shadow-slate-200">
+              <img
+                src={logoSrc}
+                alt="Company logo"
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-indigo-400">
+                Admin only
+              </p>
+              <h1 className="text-3xl font-semibold text-slate-900">
+                Settings
+              </h1>
+              <p className="text-sm text-slate-600">
+                Company profile, compliance, team, and security.
+              </p>
+            </div>
+          </div>
           <button
             onClick={() => router.back()}
-            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm hover:bg-slate-100"
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-100"
           >
             Back
           </button>
-          <span>/</span>
-          <span>Change Password</span>
         </div>
-        <section className="space-y-6 rounded-[40px] border border-slate-100 bg-white/90 p-10 shadow-[0_35px_120px_rgba(15,23,42,0.12)]">
+
+        {status && (
+          <p
+            className={`rounded-2xl px-4 py-3 text-sm font-semibold ${
+              status.type === "success"
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-rose-50 text-rose-600"
+            }`}
+          >
+            {status.message}
+          </p>
+        )}
+
+        <section className="grid gap-6 lg:grid-cols-2">
+          <div className="space-y-6 rounded-3xl border border-slate-100 bg-white p-6 shadow-md shadow-slate-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-indigo-400">
+                  Company
+                </p>
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Profile & Branding
+                </h2>
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-white">
+                <input
+                  type="file"
+                  accept="image/png, image/jpeg, image/webp"
+                  className="hidden"
+                  disabled={logoUploading}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      void handleLogoUpload(file);
+                    }
+                  }}
+                />
+                <span>{logoUploading ? "Uploading..." : "Upload logo"}</span>
+              </label>
+            </div>
+
+            <div className="space-y-4">
+              <label className="text-sm font-semibold text-slate-700">
+                Company name
+                <input
+                  type="text"
+                  value={settings.company_name}
+                  onChange={(event) =>
+                    handleSettingsChange("company_name", event.target.value)
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                />
+              </label>
+
+              <label className="text-sm font-semibold text-slate-700">
+                Industry type
+                <input
+                  type="text"
+                  value={settings.industry_type}
+                  onChange={(event) =>
+                    handleSettingsChange("industry_type", event.target.value)
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                />
+              </label>
+
+              <label className="text-sm font-semibold text-slate-700">
+                Company description
+                <textarea
+                  rows={4}
+                  value={settings.description}
+                  onChange={(event) =>
+                    handleSettingsChange("description", event.target.value)
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="space-y-6 rounded-3xl border border-slate-100 bg-white p-6 shadow-md shadow-slate-100">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-indigo-400">
+              Addresses
+            </p>
+            <label className="text-sm font-semibold text-slate-700">
+              Registered address
+              <textarea
+                rows={3}
+                value={settings.registered_address}
+                onChange={(event) =>
+                  handleSettingsChange("registered_address", event.target.value)
+                }
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+              />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Operational address
+              <textarea
+                rows={3}
+                value={settings.operational_address}
+                onChange={(event) =>
+                  handleSettingsChange("operational_address", event.target.value)
+                }
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+              />
+            </label>
+          </div>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-3">
+          <div className="space-y-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-md shadow-slate-100 lg:col-span-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-indigo-400">
+                  Compliance
+                </p>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Company details
+                </h2>
+              </div>
+              <button
+                onClick={handleSettingsSave}
+                disabled={isSavingSettings || isLoadingSettings}
+                className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isSavingSettings ? "Saving..." : "Save settings"}
+              </button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <label className="text-sm font-semibold text-slate-700">
+                GSTIN / Tax number
+                <input
+                  type="text"
+                  value={settings.gst_number}
+                  onChange={(event) =>
+                    handleSettingsChange("gst_number", event.target.value)
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                />
+              </label>
+
+              <label className="text-sm font-semibold text-slate-700">
+                PAN card
+                <input
+                  type="text"
+                  value={settings.pan_number}
+                  onChange={(event) =>
+                    handleSettingsChange("pan_number", event.target.value)
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                />
+              </label>
+
+              <label className="text-sm font-semibold text-slate-700">
+                Contact email
+                <input
+                  type="email"
+                  value={settings.contact_email}
+                  onChange={(event) =>
+                    handleSettingsChange("contact_email", event.target.value)
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                />
+              </label>
+
+              <label className="text-sm font-semibold text-slate-700">
+                Phone number
+                <input
+                  type="tel"
+                  value={settings.contact_phone}
+                  onChange={(event) =>
+                    handleSettingsChange("contact_phone", event.target.value)
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                />
+              </label>
+
+              <label className="text-sm font-semibold text-slate-700">
+                Company website
+                <input
+                  type="url"
+                  value={settings.contact_website}
+                  onChange={(event) =>
+                    handleSettingsChange("contact_website", event.target.value)
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="space-y-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-md shadow-slate-100">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-indigo-400">
+              Financial year
+            </p>
+            <div className="grid gap-4">
+              <label className="text-sm font-semibold text-slate-700">
+                Start date
+                <input
+                  type="date"
+                  value={settings.financial_year_start}
+                  onChange={(event) =>
+                    handleSettingsChange(
+                      "financial_year_start",
+                      event.target.value,
+                    )
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                End date
+                <input
+                  type="date"
+                  value={settings.financial_year_end}
+                  onChange={(event) =>
+                    handleSettingsChange(
+                      "financial_year_end",
+                      event.target.value,
+                    )
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-inner shadow-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                />
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-md shadow-slate-100">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-indigo-400">
+                Team management
+              </p>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Employees & badges
+              </h2>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  setTeamMembers((prev) => [
+                    ...prev,
+                    {
+                      id: undefined,
+                      name: "",
+                      employee_id: "",
+                      role: "",
+                      trust_flag: "gold",
+                    },
+                  ])
+                }
+                className="rounded-full bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-100"
+              >
+                + Add member
+              </button>
+              <button
+                onClick={fetchCompanyData}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-slate-100">
+            <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr_0.8fr] gap-1 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <span>Name</span>
+              <span>Employee ID</span>
+              <span>Role</span>
+              <span>Badge</span>
+              <span>Actions</span>
+            </div>
+            <div className="divide-y divide-slate-100 bg-white">
+              {teamMembers.length === 0 && (
+                <div className="px-4 py-4 text-sm text-slate-500">
+                  No team members yet.
+                </div>
+              )}
+              {teamMembers.map((member, index) => (
+                <div
+                  key={member.id ?? `temp-${index}`}
+                  className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr_0.8fr] gap-3 px-4 py-4 text-sm text-slate-700"
+                >
+                  <input
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    value={member.name}
+                    onChange={(event) =>
+                      setTeamMembers((prev) =>
+                        prev.map((row, idx) =>
+                          idx === index
+                            ? { ...row, name: event.target.value }
+                            : row,
+                        ),
+                      )
+                    }
+                    placeholder="Full name"
+                  />
+                  <input
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    value={member.employee_id}
+                    onChange={(event) =>
+                      setTeamMembers((prev) =>
+                        prev.map((row, idx) =>
+                          idx === index
+                            ? { ...row, employee_id: event.target.value }
+                            : row,
+                        ),
+                      )
+                    }
+                    placeholder="ID"
+                  />
+                  <input
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    value={member.role}
+                    onChange={(event) =>
+                      setTeamMembers((prev) =>
+                        prev.map((row, idx) =>
+                          idx === index
+                            ? { ...row, role: event.target.value }
+                            : row,
+                        ),
+                      )
+                    }
+                    placeholder="Role"
+                  />
+                  <div className="flex items-center gap-2">
+                    {[
+                      { key: "gold" as TrustFlag, icon: "🥇", classes: "border-amber-500 bg-amber-50 text-amber-700" },
+                      { key: "silver" as TrustFlag, icon: "🥈", classes: "border-slate-400 bg-slate-50 text-slate-600" },
+                      { key: "bronze" as TrustFlag, icon: "🥉", classes: "border-orange-500 bg-orange-50 text-orange-700" },
+                    ].map((flag) => (
+                      <button
+                        key={flag.key}
+                        onClick={() =>
+                          setTeamMembers((prev) =>
+                            prev.map((row, idx) =>
+                              idx === index ? { ...row, trust_flag: flag.key } : row,
+                            ),
+                          )
+                        }
+                        className={`h-11 w-11 rounded-full border text-lg transition ${
+                          member.trust_flag === flag.key
+                            ? flag.classes
+                            : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                        }`}
+                        aria-label={`Set badge ${flag.key}`}
+                        type="button"
+                      >
+                        {flag.icon}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => void upsertTeamMember(member)}
+                      disabled={savingMemberId !== null}
+                      className="rounded-full bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {savingMemberId === (member.id ?? "new")
+                        ? "Saving..."
+                        : "Save"}
+                    </button>
+                    <button
+                      onClick={() => void deleteTeamMember(member.id)}
+                      disabled={deletingMemberId === member.id}
+                      className="rounded-full border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {deletingMemberId === member.id ? "Removing..." : "Delete"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-6 rounded-3xl border border-slate-100 bg-white p-6 shadow-md shadow-slate-100">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.4em] text-rose-500">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-500">
               High security
             </p>
-            <h1 className="text-3xl font-semibold text-slate-900">
+            <h2 className="text-xl font-semibold text-slate-900">
               Rotate super admin password
-            </h1>
+            </h2>
             <p className="text-sm text-slate-500">
               This updates the password for {SUPER_ADMIN_EMAIL}. A logout is
               required for the new password to take effect in the current
@@ -159,7 +749,7 @@ export default function AdminSettingsPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-4 space-y-6">
+          <form onSubmit={handleSubmit} className="mt-2 space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
                 <label
@@ -275,21 +865,8 @@ export default function AdminSettingsPage() {
               {isSaving ? "Updating..." : "Update password"}
             </button>
           </form>
-
-          {status && (
-            <p
-              className={`rounded-2xl px-4 py-3 text-sm font-semibold ${
-                status.type === "success"
-                  ? "bg-emerald-50 text-emerald-600"
-                  : "bg-rose-50 text-rose-600"
-              }`}
-            >
-              {status.message}
-            </p>
-          )}
         </section>
       </div>
-      {/* Removed right-side logo */}
     </div>
   );
 }
