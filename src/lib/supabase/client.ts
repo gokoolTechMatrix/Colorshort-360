@@ -17,7 +17,22 @@ export const getSupabaseBrowserClient = () => {
       detectSessionInUrl: true,
       persistSession: true,
       flowType: "pkce",
+      storageKey: "supabase-auth",
+      autoRefreshToken: true,
     },
+  });
+
+  // Handle refresh token errors by clearing invalid sessions
+  browserClient.auth.onAuthStateChange((event, session) => {
+    if (event === "TOKEN_REFRESHED" && !session) {
+      // If token refresh failed, clear the stored session
+      browserClient?.auth.signOut({ scope: "local" });
+    }
+  });
+
+  // Clear any invalid sessions on initialization
+  browserClient.auth.getSession().catch(() => {
+    browserClient?.auth.signOut({ scope: "local" });
   });
 
   return browserClient;
