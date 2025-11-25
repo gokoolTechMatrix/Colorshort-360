@@ -256,10 +256,10 @@ function KpiGrid({
   items: Array<{ label: string; value: string; subLabel?: string }>;
 }) {
   const gradients = [
-    "from-indigo-100 via-white to-indigo-50",
-    "from-rose-100 via-white to-rose-50",
-    "from-amber-100 via-white to-amber-50",
-    "from-emerald-100 via-white to-emerald-50",
+    "bg-[#e8f0ff]",
+    "bg-[#ffe9ee]",
+    "bg-[#fff4d9]",
+    "bg-[#e9fff2]",
   ];
 
   return (
@@ -269,14 +269,16 @@ function KpiGrid({
           key={item.label}
           className={`group rounded-3xl border border-white/60 bg-gradient-to-br ${gradients[index % gradients.length]} p-5 shadow-lg shadow-slate-100 transition hover:-translate-y-1 hover:shadow-xl`}
         >
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-600">
             {item.label}
           </p>
-          <p className="mt-3 text-3xl font-semibold text-slate-900">
+          <p className="mt-3 text-3xl font-extrabold text-slate-900">
             {item.value}
           </p>
           {item.subLabel && (
-            <p className="mt-1 text-sm text-slate-600">{item.subLabel}</p>
+            <p className="mt-1 text-sm font-semibold text-slate-700">
+              {item.subLabel}
+            </p>
           )}
         </div>
       ))}
@@ -352,23 +354,65 @@ function QuickActions({ actions }: { actions: string[] }) {
 }
 
 function StoreInchargeDashboard({ profileName }: DashboardProps) {
+  const kpis = [
+    { label: "Total Stock Value", value: "Rs 12,40,000", subLabel: "+3.2% vs last week" },
+    { label: "Low Stock Items", value: "8", subLabel: "3 critical" },
+    { label: "Today GRNs", value: "3", subLabel: "2 pending QA" },
+    { label: "Material Issues", value: "5", subLabel: "Service dept" },
+  ];
+  const buckets = [
+    { label: "Raw Materials", value: "Rs 7,20,000", percent: 60 },
+    { label: "Finished Goods", value: "Rs 4,10,000", percent: 34 },
+    { label: "Others", value: "Rs 1,10,000", percent: 9 },
+  ];
+  const alerts = [
+    "GRN received from Steel Traders (Rs 35,000)",
+    "Issued bearings to Service Dept (WO-140)",
+    "Received 20 lubrication cans from Vendor",
+  ];
+
   return (
     <div className="space-y-6">
-      <KpiGrid
-        items={[
-          { label: "Total Stock Value", value: "₹12,40,000" },
-          { label: "Low Stock Items", value: "8" },
-          { label: "Today GRNs", value: "3" },
-          { label: "Material Issues", value: "5" },
-        ]}
-      />
-      <Section subtitle={`Overview for ${profileName}`} title="Stock overview">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1d2f6f] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/70">
+              Store incharge
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold text-white">
+              {profileName}, keep stock healthy and flowing.
+            </h2>
+            <p className="mt-1 text-sm text-white/80">
+              Monitor valuations, inflow/outflow, and low stock in one glance.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm font-semibold">
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              GRNs today: 3
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Issues: 5
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Low stock: 8
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button className="rounded-2xl bg-white px-4 py-2 text-indigo-700 transition hover:-translate-y-[1px] hover:shadow-sm">
+            + Create GRN
+          </button>
+          <button className="rounded-2xl border border-white/60 bg-white/10 px-4 py-2 text-white transition hover:-translate-y-[1px] hover:bg-white/15">
+            Issue material
+          </button>
+        </div>
+      </div>
+
+      <KpiGrid items={kpis} />
+
+      <Section subtitle={`Overview for ${profileName}`} title="Stock overview" variant="pastel">
         <div className="space-y-4 text-sm text-slate-600">
-          {[
-            { label: "Raw Materials", value: "₹7,20,000", percent: 60 },
-            { label: "Finished Goods", value: "₹4,10,000", percent: 34 },
-            { label: "Others", value: "₹1,10,000", percent: 9 },
-          ].map((item) => (
+          {buckets.map((item) => (
             <div key={item.label}>
               <div className="mb-1 flex justify-between text-xs font-semibold text-slate-500">
                 <span>{item.label}</span>
@@ -384,15 +428,11 @@ function StoreInchargeDashboard({ profileName }: DashboardProps) {
           ))}
         </div>
       </Section>
-      <Section title="Today's activities">
-        <List
-          items={[
-            "GRN received from Steel Traders (₹35,000)",
-            "Issued bearings to Service Dept (WO-140)",
-            "Received 20 lubrication cans from Vendor",
-          ]}
-        />
+
+      <Section title="Today's activities" variant="pastel">
+        <List items={alerts} />
       </Section>
+
       <Section title="Quick actions">
         <QuickActions
           actions={[
@@ -400,6 +440,7 @@ function StoreInchargeDashboard({ profileName }: DashboardProps) {
             "+ Issue Material",
             "+ Add Stock",
             "+ Record Damage",
+            "+ Export Inventory",
           ]}
         />
       </Section>
@@ -408,29 +449,77 @@ function StoreInchargeDashboard({ profileName }: DashboardProps) {
 }
 
 function PurchaseManagerDashboard({ profileName }: DashboardProps) {
+  const spend = [
+    { label: "Electrical", value: "₹ 1,60,000" },
+    { label: "Mechanical", value: "₹ 1,10,000" },
+    { label: "Consumables", value: "₹ 90,000" },
+  ];
+  const tasks = [
+    "Approve PO-221 (Fasteners Ltd – ₹18,000)",
+    "Create PO for Steel Rod (PR-112)",
+    "Follow-up GRN from Lubricant Supplier",
+    "Lock vendor shortlist for bearings",
+  ];
+  const actions = [
+    "+ Create PO",
+    "+ Add Vendor",
+    "+ Review PR",
+    "+ Price Comparison",
+    "+ Request Quotes",
+  ];
+
   return (
     <div className="space-y-6">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1d2f6f] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/70">
+              Purchase control
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold">
+              {profileName}, streamline POs and GRNs.
+            </h2>
+            <p className="mt-1 text-sm text-white/80">
+              Track approvals, inbound GRNs, and vendor spend in one view.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm font-semibold">
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Open PRs: 12
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              POs pending: 4
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              GRNs pending: 3
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button className="rounded-2xl bg-white px-4 py-2 text-indigo-700 transition hover:-translate-y-[1px] hover:shadow-sm">
+            + Create PO
+          </button>
+          <button className="rounded-2xl border border-white/60 px-4 py-2 text-white transition hover:-translate-y-[1px] hover:bg-white/15">
+            Review PRs
+          </button>
+        </div>
+      </div>
+
       <KpiGrid
         items={[
-          { label: "Open PRs", value: "12" },
-          { label: "POs Pending Approval", value: "4" },
-          { label: "GRNs Pending", value: "3" },
-          { label: "Monthly Purchase Value", value: "₹4,20,000" },
+          { label: "Open PRs", value: "12", subLabel: "4 urgent" },
+          { label: "POs Pending Approval", value: "4", subLabel: "Avg age 6h" },
+          { label: "GRNs Pending", value: "3", subLabel: "2 need QA" },
+          { label: "Monthly Purchase Value", value: "₹ 4,20,000", subLabel: "+6% vs last month" },
         ]}
       />
-      <Section
-        title="Purchase overview"
-        subtitle={`Spend split for ${profileName}`}
-      >
-        <div className="grid gap-4 sm:grid-cols-3 text-sm text-slate-600">
-          {[
-            { label: "Electrical", value: "₹1,60,000" },
-            { label: "Mechanical", value: "₹1,10,000" },
-            { label: "Consumables", value: "₹90,000" },
-          ].map((item) => (
+
+      <Section title="Purchase overview" subtitle={`Spend split for ${profileName}`} variant="pastel">
+        <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-3">
+          {spend.map((item) => (
             <div
               key={item.label}
-              className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
+              className="rounded-2xl border border-white/70 bg-white/90 px-4 py-4 shadow-sm shadow-indigo-50 transition hover:-translate-y-[2px] hover:shadow-lg"
             >
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
                 {item.label}
@@ -442,24 +531,13 @@ function PurchaseManagerDashboard({ profileName }: DashboardProps) {
           ))}
         </div>
       </Section>
-      <Section title="Today's tasks">
-        <List
-          items={[
-            "Approve PO-221 (Fasteners Ltd – ₹18,000)",
-            "Create PO for Steel Rod (PR-112)",
-            "Follow-up GRN from Lubricant Supplier",
-          ]}
-        />
+
+      <Section title="Today's tasks" variant="pastel">
+        <List items={tasks} />
       </Section>
+
       <Section title="Quick actions">
-        <QuickActions
-          actions={[
-            "+ Create PO",
-            "+ Add Vendor",
-            "+ Review PR",
-            "+ Price Comparison",
-          ]}
-        />
+        <QuickActions actions={actions} />
       </Section>
     </div>
   );
@@ -676,8 +754,64 @@ function ServiceCoordinatorDashboard({ profileName }: DashboardProps) {
 }
 
 function SalesCoordinatorDashboard({ profileName }: DashboardProps) {
+  const deals = [
+    { name: "Sri Plastics", value: "₹ 4,80,000", stage: "Negotiation", eta: "Close in 5d", tone: "amber" },
+    { name: "North Mills", value: "₹ 3,25,000", stage: "Quote sent", eta: "Follow-up tomorrow", tone: "sky" },
+    { name: "Summit Agro", value: "₹ 2,10,000", stage: "Contacted", eta: "Demo scheduled", tone: "indigo" },
+    { name: "Arora Foods", value: "₹ 1,45,000", stage: "Won", eta: "PO received", tone: "emerald" },
+  ];
+  const funnel = [
+    { stage: "New", value: 12, gradient: "from-indigo-100 to-indigo-300" },
+    { stage: "Contacted", value: 20, gradient: "from-sky-100 to-sky-300" },
+    { stage: "Quotation Sent", value: 8, gradient: "from-amber-100 to-amber-300" },
+    { stage: "Negotiation", value: 6, gradient: "from-purple-100 to-purple-300" },
+    { stage: "Closed", value: 4, gradient: "from-emerald-100 to-emerald-300" },
+  ];
+  const actions = ["+ Add Lead", "+ Create Quotation", "+ Assign Lead", "+ Send Follow-up", "+ Schedule Demo", "+ Send Catalog"];
+  const tasks = [
+    "Assign 3 new leads to sales team",
+    "Prepare quotation for Sri Plastics",
+    "Follow-up pending quotation Q-142",
+    "Send product catalogue to Star Metals",
+  ];
+
   return (
     <div className="space-y-6">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1d2f6f] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/70">
+              Sales coordination
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold">
+              {profileName}, keep the funnel moving.
+            </h2>
+            <p className="mt-1 text-sm text-white/80">
+              Track leads, follow-ups, and conversion health at a glance.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm font-semibold">
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Leads today: 12
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Quotes sent: 10
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Win rate: 24%
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button className="rounded-2xl bg-white px-4 py-2 text-indigo-700 transition hover:-translate-y-[1px] hover:shadow-sm">
+            + Add lead
+          </button>
+          <button className="rounded-2xl border border-white/60 px-4 py-2 text-white transition hover:-translate-y-[1px] hover:bg-white/15">
+            Schedule demo
+          </button>
+        </div>
+      </div>
+
       <KpiGrid
         items={[
           { label: "New Leads Today", value: "12" },
@@ -686,19 +820,13 @@ function SalesCoordinatorDashboard({ profileName }: DashboardProps) {
           { label: "Orders Closed", value: "4" },
         ]}
       />
-      <Section
-        title="Lead pipeline summary"
-        subtitle={`Focus areas for ${profileName}`}
-      >
+      <Section title="Lead pipeline summary" subtitle={`Focus areas for ${profileName}`} variant="pastel">
         <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-5">
-          {[
-            { stage: "New", value: 12, gradient: "from-indigo-100 to-indigo-300" },
-            { stage: "Contacted", value: 20, gradient: "from-sky-100 to-sky-300" },
-            { stage: "Quotation Sent", value: 8, gradient: "from-amber-100 to-amber-300" },
-            { stage: "Negotiation", value: 6, gradient: "from-purple-100 to-purple-300" },
-            { stage: "Closed", value: 4, gradient: "from-emerald-100 to-emerald-300" },
-          ].map((item) => (
-            <div key={item.stage} className="text-center">
+          {funnel.map((item) => (
+            <div
+              key={item.stage}
+              className="rounded-2xl border border-white/70 bg-white/90 p-4 text-center shadow-sm shadow-indigo-50 transition hover:-translate-y-[2px] hover:shadow-lg"
+            >
               <div
                 className={`mx-auto mb-2 h-16 w-16 rounded-2xl bg-gradient-to-br ${item.gradient} p-5 text-xl font-semibold text-slate-800 shadow-inner shadow-white`}
               >
@@ -711,25 +839,49 @@ function SalesCoordinatorDashboard({ profileName }: DashboardProps) {
           ))}
         </div>
       </Section>
-      <Section title="Today's task list">
-        <List
-          items={[
-            "Assign 3 new leads to sales team",
-            "Prepare quotation for Sri Plastics",
-            "Follow-up pending quotation Q-142",
-            "Send product catalogue to Star Metals",
-          ]}
-        />
+
+      <Section title="Top opportunities" subtitle="Focus deals to close" variant="pastel">
+        <div className="grid gap-3 lg:grid-cols-2">
+          {deals.map((deal) => (
+            <div
+              key={deal.name}
+              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-base font-semibold text-slate-900">{deal.name}</p>
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                    {deal.stage}
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                    deal.tone === "amber"
+                      ? "bg-amber-50 text-amber-700"
+                      : deal.tone === "sky"
+                        ? "bg-sky-50 text-sky-700"
+                        : deal.tone === "emerald"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-indigo-50 text-indigo-700"
+                  }`}
+                >
+                  {deal.value}
+                </span>
+              </div>
+              <p className="mt-2 text-xs font-semibold text-slate-600">
+                {deal.eta}
+              </p>
+            </div>
+          ))}
+        </div>
       </Section>
+
+      <Section title="Today's task list">
+        <List items={tasks} />
+      </Section>
+
       <Section title="Quick actions">
-        <QuickActions
-          actions={[
-            "+ Add Lead",
-            "+ Create Quotation",
-            "+ Assign Lead",
-            "+ Send Follow-up",
-          ]}
-        />
+        <QuickActions actions={actions} />
       </Section>
     </div>
   );

@@ -214,9 +214,7 @@ export function DashboardSidebar({
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-rose-500 shadow-inner">
           <svg
             viewBox="0 0 24 24"
-            className={`h-5 w-5 transition-transform ${
-              isSigningOut ? "animate-spin" : "group-hover:translate-x-0.5"
-            }`}
+            className="h-5 w-5 transition-transform group-hover:translate-x-0.5"
             fill="none"
             stroke="currentColor"
             strokeWidth="1.8"
