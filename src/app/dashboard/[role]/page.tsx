@@ -782,7 +782,7 @@ function AccountantDashboard({ profileName }: DashboardProps) {
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button className="rounded-2xl bg-white px-4 py-2 text-sky-700 shadow-lg shadow-sky-200 transition hover:-translate-y-[1px] hover:shadow-xl">
+          <button className="rounded-2xl bg-slate-50 px-4 py-2 text-sky-700 transition hover:-translate-y-[1px] hover:shadow-sm">
             + Create invoice
           </button>
           <button className="rounded-2xl border border-white/60 px-4 py-2 text-white transition hover:bg-white/15">
@@ -962,28 +962,165 @@ function AccountantDashboard({ profileName }: DashboardProps) {
 }
 
 function ServiceEngineerDashboard({ profileName }: DashboardProps) {
+  const jobs = [
+    { time: "09:15", client: "Kumar Industries", issue: "Motor Overheat", priority: "High", eta: "Onsite", status: "In progress" },
+    { time: "12:00", client: "Star Metals", issue: "Alignment Issue", priority: "Medium", eta: "45m", status: "Queued" },
+    { time: "15:30", client: "Sri Plastics", issue: "Belt Trouble", priority: "Low", eta: "2h", status: "Queued" },
+    { time: "17:10", client: "North Mills", issue: "Sensor Fault", priority: "High", eta: "3h", status: "Queued" },
+  ];
+  const parts = [
+    { name: "Motor Belt", stock: "12 in van", need: 1, status: "Ready" },
+    { name: "Sensor Board", stock: "3 in hub", need: 1, status: "Pick up" },
+    { name: "Grease Pack", stock: "5 in van", need: 2, status: "Ready" },
+    { name: "Fasteners Kit", stock: "Low", need: 1, status: "Order" },
+  ];
+  const load = [
+    { label: "Assigned", value: 6, color: "from-indigo-300 to-indigo-500" },
+    { label: "In progress", value: 3, color: "from-amber-300 to-amber-500" },
+    { label: "Completed", value: 4, color: "from-emerald-300 to-emerald-500" },
+    { label: "Escalations", value: 1, color: "from-rose-300 to-rose-500" },
+  ];
+
   return (
     <div className="space-y-6">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1d2f6f] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/70">
+              Field ops
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold">
+              {profileName}, your routes are live.
+            </h2>
+            <p className="mt-1 text-sm text-white/80">
+              Track visits, spares, and SLA health on the go.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm font-semibold">
+            <span className="rounded-2xl bg-white/15 px-4 py-2 backdrop-blur">
+              Jobs today: 9
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 backdrop-blur">
+              On-time: 92%
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 backdrop-blur">
+              Response: 34m avg
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button className="rounded-2xl bg-slate-50 px-4 py-2 text-indigo-700 transition hover:-translate-y-[1px] hover:shadow-sm">
+            Start next job
+          </button>
+          <button className="rounded-2xl border border-white/60 px-4 py-2 text-white transition hover:bg-white/15">
+            View route map
+          </button>
+        </div>
+      </div>
+
       <KpiGrid
         items={[
-          { label: "Jobs Assigned", value: "6" },
-          { label: "Completed Today", value: "2" },
-          { label: "Pending Jobs", value: "3" },
-          { label: "Escalations", value: "0" },
+          { label: "Jobs Assigned", value: "9", subLabel: "3 in progress" },
+          { label: "Completed Today", value: "4", subLabel: "Avg 52m" },
+          { label: "Pending Jobs", value: "5", subLabel: "2 high priority" },
+          { label: "Escalations", value: "1", subLabel: "Follow-up at 4 PM" },
         ]}
       />
-      <Section
-        title="Today's visit schedule"
-        subtitle={`Field plan for ${profileName}`}
-      >
-        <List
-          items={[
-            "10:00 AM – Kumar Industries – Motor Overheat (High)",
-            "1:00 PM – Star Metals – Alignment Issue (Medium)",
-            "4:00 PM – Sri Plastics – Belt Trouble (Low)",
-          ]}
-        />
+
+      <Section title="Workload status" variant="pastel">
+        <div className="grid gap-3 sm:grid-cols-4">
+          {load.map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl border border-indigo-50 bg-white/90 p-4 text-center shadow-sm shadow-indigo-100 transition hover:-translate-y-[2px] hover:shadow-lg"
+            >
+              <div
+                className={`mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${item.color} text-lg font-semibold text-slate-900 shadow-inner shadow-white`}
+              >
+                {item.value}
+              </div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                {item.label}
+              </p>
+            </div>
+          ))}
+        </div>
       </Section>
+
+      <Section title="Today's visit schedule" subtitle="Upcoming calls and priorities">
+        <div className="grid gap-3 lg:grid-cols-2">
+          {jobs.map((job) => (
+            <div
+              key={job.client + job.time}
+              className="relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <div className="absolute inset-0 opacity-70 blur-2xl" style={{ background: `radial-gradient(circle at 30% 20%, rgba(59,130,246,0.12), transparent 35%), radial-gradient(circle at 70% 0%, rgba(16,185,129,0.12), transparent 30%)` }} />
+              <div className="relative flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                    {job.time} · {job.client}
+                  </p>
+                  <p className="text-base font-semibold text-slate-900">
+                    {job.issue}
+                  </p>
+                  <p className="text-xs font-semibold text-slate-500">
+                    ETA: {job.eta}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <span
+                    className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                      job.priority === "High"
+                        ? "bg-rose-50 text-rose-600"
+                        : job.priority === "Medium"
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-emerald-50 text-emerald-700"
+                    }`}
+                  >
+                    {job.priority}
+                  </span>
+                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-600">
+                    {job.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Spares readiness" variant="pastel">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {parts.map((part) => (
+            <div
+              key={part.name}
+              className="rounded-2xl border border-slate-100 bg-white/90 p-4 text-sm shadow-sm shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                {part.name}
+              </p>
+              <p className="mt-2 text-base font-semibold text-slate-900">
+                Stock: {part.stock}
+              </p>
+              <p className="text-xs font-semibold text-slate-600">
+                Need: {part.need}
+              </p>
+              <span
+                className={`mt-3 inline-flex w-fit rounded-full px-3 py-1 text-[11px] font-semibold ${
+                  part.status === "Ready"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : part.status === "Pick up"
+                      ? "bg-amber-50 text-amber-700"
+                      : "bg-rose-50 text-rose-600"
+                }`}
+              >
+                {part.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
       <Section title="Quick actions">
         <QuickActions
           actions={[
@@ -991,6 +1128,8 @@ function ServiceEngineerDashboard({ profileName }: DashboardProps) {
             "+ Upload Photo",
             "+ Add Spare Usage",
             "+ Close Job",
+            "+ Update ETA",
+            "+ Mark Escalation",
           ]}
         />
       </Section>
@@ -999,43 +1138,125 @@ function ServiceEngineerDashboard({ profileName }: DashboardProps) {
 }
 
 function SalesExecutiveDashboard({ profileName }: DashboardProps) {
+  const deals = [
+    { name: "Sri Plastics", value: "₹ 4,80,000", stage: "Negotiation", eta: "Close in 5d", tone: "amber" },
+    { name: "North Mills", value: "₹ 3,25,000", stage: "Quote sent", eta: "Follow-up tomorrow", tone: "sky" },
+    { name: "Summit Agro", value: "₹ 2,10,000", stage: "Contacted", eta: "Demo scheduled", tone: "indigo" },
+    { name: "Arora Foods", value: "₹ 1,45,000", stage: "Won", eta: "PO received", tone: "emerald" },
+  ];
+  const funnel = [
+    { stage: "New Leads", value: 22, color: "from-indigo-100 to-indigo-300" },
+    { stage: "Contacted", value: 18, color: "from-sky-100 to-sky-300" },
+    { stage: "Quote Sent", value: 10, color: "from-amber-100 to-amber-300" },
+    { stage: "Negotiation", value: 6, color: "from-purple-100 to-purple-300" },
+    { stage: "Won", value: 3, color: "from-emerald-100 to-emerald-300" },
+  ];
+
   return (
     <div className="space-y-6">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1d2f6f] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/70">
+              Sales command
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold text-white">
+              {profileName}, keep momentum on live deals.
+            </h2>
+            <p className="mt-1 text-sm text-white/80">
+              Track funnel health, follow-ups, and top opportunities.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm font-semibold">
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Leads today: 12
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Win rate: 28%
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Follow-ups pending: 7
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button className="rounded-2xl bg-white px-4 py-2 text-indigo-700 transition hover:-translate-y-[1px] hover:shadow-sm">
+            + Add lead
+          </button>
+          <button className="rounded-2xl border border-white/60 px-4 py-2 text-white transition hover:-translate-y-[1px] hover:bg-white/15">
+            Log follow-up
+          </button>
+        </div>
+      </div>
+
       <KpiGrid
         items={[
-          { label: "Leads Assigned", value: "14" },
-          { label: "Follow-ups", value: "9" },
-          { label: "Orders Won", value: "3" },
-          { label: "Pipeline Value", value: "₹2,35,000" },
+          { label: "Leads Assigned", value: "14", subLabel: "+4 today" },
+          { label: "Follow-ups Due", value: "9", subLabel: "7 today" },
+          { label: "Orders Won", value: "3", subLabel: "Win rate 28%" },
+          { label: "Pipeline Value", value: "₹ 12,35,000", subLabel: "Prioritized top 5" },
         ]}
       />
-      <Section
-        title="Sales funnel"
-        subtitle={`Live funnel for ${profileName}`}
-      >
-        <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-4">
-          {[
-            { stage: "New Leads", value: 22, color: "from-indigo-100 to-indigo-300" },
-            { stage: "Contacted", value: 18, color: "from-purple-100 to-purple-300" },
-            { stage: "Quote Sent", value: 10, color: "from-amber-100 to-amber-300" },
-            { stage: "Won", value: 3, color: "from-emerald-100 to-emerald-300" },
-          ].map((item) => (
-            <div key={item.stage} className="text-center">
+
+      <Section title="Sales funnel" subtitle={`Live funnel for ${profileName}`} variant="pastel">
+        <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-5">
+          {funnel.map((item) => (
+            <div
+              key={item.stage}
+              className="rounded-2xl border border-white/70 bg-white/90 p-4 text-center shadow-sm shadow-indigo-50 transition hover:-translate-y-[2px] hover:shadow-lg"
+            >
               <div
-                className={`mx-auto mb-2 h-16 w-16 rounded-full bg-gradient-to-br ${item.color} p-5 text-xl font-semibold text-slate-700 shadow-inner shadow-white`}
+                className={`mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${item.color} text-xl font-semibold text-slate-800 shadow-inner shadow-white`}
               >
                 {item.value}
               </div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 {item.stage}
               </p>
             </div>
           ))}
         </div>
       </Section>
+
+      <Section title="Top opportunities" subtitle="Focus deals to close" variant="pastel">
+        <div className="grid gap-3 lg:grid-cols-2">
+          {deals.map((deal) => (
+            <div
+              key={deal.name}
+              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-base font-semibold text-slate-900">{deal.name}</p>
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                    {deal.stage}
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                    deal.tone === "amber"
+                      ? "bg-amber-50 text-amber-700"
+                      : deal.tone === "sky"
+                        ? "bg-sky-50 text-sky-700"
+                        : deal.tone === "emerald"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-indigo-50 text-indigo-700"
+                  }`}
+                >
+                  {deal.value}
+                </span>
+              </div>
+              <p className="mt-2 text-xs font-semibold text-slate-600">
+                {deal.eta}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
       <Section title="Quick actions">
         <QuickActions
-          actions={["+ Add Lead", "+ Add Quotation", "+ Log Activity"]}
+          actions={["+ Add Lead", "+ Add Quotation", "+ Log Activity", "+ Schedule Demo", "+ Send Catalog"]}
         />
       </Section>
     </div>
@@ -1043,54 +1264,166 @@ function SalesExecutiveDashboard({ profileName }: DashboardProps) {
 }
 
 function ServiceManagerDashboard({ profileName }: DashboardProps) {
+  const escalations = [
+    { ticket: "T-298", issue: "Motor overheating", age: "2h 15m", status: "Escalated", priority: "High" },
+    { ticket: "T-285", issue: "Sensor fault", age: "4h 20m", status: "Pending RCA", priority: "Medium" },
+    { ticket: "T-279", issue: "HMI reboot", age: "6h 05m", status: "Waiting parts", priority: "Low" },
+  ];
+  const visits = [
+    "08:30 AM – Arora Foods – Dryer vibration",
+    "12:00 PM – North Mills – Camera calibration",
+    "03:30 PM – Summit Agro – Belt replacement",
+    "05:30 PM – Chennai Agro – Nozzle calibration",
+  ];
+  const dispatch = [
+    { zone: "North", jobs: 5, eta: "28m", score: 82 },
+    { zone: "Central", jobs: 4, eta: "36m", score: 75 },
+    { zone: "South", jobs: 6, eta: "42m", score: 68 },
+    { zone: "West", jobs: 3, eta: "24m", score: 88 },
+  ];
+
   return (
     <div className="space-y-6">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1d2f6f] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/70">
+              Service manager
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold text-white">
+              {profileName}, keep the field humming.
+            </h2>
+            <p className="mt-1 text-sm text-white/80">
+              Monitor workload, dispatch efficiency, and escalations in one view.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm font-semibold">
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Live tickets: 18
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              SLA on-time: 91%
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Dispatch avg: 32m
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button className="rounded-2xl bg-white px-4 py-2 text-indigo-700 transition hover:-translate-y-[1px] hover:shadow-sm">
+            View dispatch
+          </button>
+          <button className="rounded-2xl border border-white/60 px-4 py-2 text-white transition hover:-translate-y-[1px] hover:bg-white/10">
+            Escalation board
+          </button>
+        </div>
+      </div>
+
       <Section
         title="Service status overview"
         subtitle={`Snapshot for ${profileName}`}
+        variant="pastel"
       >
         <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-4">
           {[
-            { label: "Pending", value: "8", color: "bg-rose-100 text-rose-600" },
-            { label: "In Progress", value: "5", color: "bg-amber-100 text-amber-600" },
-            {
-              label: "Completed Today",
-              value: "4",
-              color: "bg-emerald-100 text-emerald-600",
-            },
-            {
-              label: "Escalated",
-              value: "1",
-              color: "bg-indigo-100 text-indigo-600",
-            },
+            { label: "Pending", value: "8", color: "from-rose-100 to-rose-200" },
+            { label: "In Progress", value: "5", color: "from-amber-100 to-amber-200" },
+            { label: "Completed Today", value: "4", color: "from-emerald-100 to-emerald-200" },
+            { label: "Escalated", value: "1", color: "from-indigo-100 to-indigo-200" },
           ].map((status) => (
             <div
               key={status.label}
-              className={`rounded-2xl border border-slate-100 px-4 py-4 text-center ${status.color}`}
+              className="rounded-2xl border border-white/70 bg-white/90 p-4 text-center shadow-sm shadow-indigo-50 transition hover:-translate-y-[2px] hover:shadow-lg"
             >
-              <p className="text-xs uppercase tracking-[0.3em]">
+              <div
+                className={`mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${status.color} text-lg font-semibold text-slate-900 shadow-inner shadow-white`}
+              >
+                {status.value}
+              </div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 {status.label}
               </p>
-              <p className="mt-2 text-2xl font-semibold">{status.value}</p>
             </div>
           ))}
         </div>
       </Section>
-      <Section title="Today's scheduled visits">
-        <List
-          items={[
-            "08:30 AM – Arora Foods – Dryer vibration",
-            "12:00 PM – North Mills – Camera calibration",
-            "03:30 PM – Summit Agro – Belt replacement",
-          ]}
-        />
+
+      <Section title="Today's scheduled visits" subtitle="Keep routes tight">
+        <List items={visits} />
       </Section>
+
+      <Section title="Dispatch efficiency" subtitle="Zone performance" variant="pastel">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {dispatch.map((row) => (
+            <div
+              key={row.zone}
+              className="rounded-2xl border border-slate-100 bg-white/90 p-4 text-sm shadow-sm shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-base font-semibold text-slate-900">{row.zone}</p>
+                <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-600">
+                  {row.jobs} jobs
+                </span>
+              </div>
+              <p className="mt-2 text-xs uppercase tracking-[0.25em] text-slate-500">
+                ETA {row.eta}
+              </p>
+              <div className="mt-3 h-2 rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-emerald-400"
+                  style={{ width: `${row.score}%` }}
+                />
+              </div>
+              <p className="mt-1 text-xs font-semibold text-slate-600">
+                Performance: {row.score}%
+              </p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Escalations board" subtitle="Unblock high-priority tickets">
+        <div className="grid gap-3 lg:grid-cols-3">
+          {escalations.map((item) => (
+            <div
+              key={item.ticket}
+              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-base font-semibold text-slate-900">
+                  {item.ticket}
+                </p>
+                <span
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                    item.priority === "High"
+                      ? "bg-rose-50 text-rose-600"
+                      : item.priority === "Medium"
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-emerald-50 text-emerald-700"
+                  }`}
+                >
+                  {item.priority}
+                </span>
+              </div>
+              <p className="mt-1 text-sm font-semibold text-slate-800">
+                {item.issue}
+              </p>
+              <p className="text-xs font-semibold text-slate-500">
+                {item.status} · Age {item.age}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
       <Section title="Quick actions">
         <QuickActions
           actions={[
             "+ Create Work Order",
             "+ Add Complaint",
             "+ Assign Technician",
+            "+ Escalate Ticket",
+            "+ Update ETA",
           ]}
         />
       </Section>
