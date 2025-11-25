@@ -373,7 +373,7 @@ function StoreInchargeDashboard({ profileName }: DashboardProps) {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1d2f6f] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#3c78ff] via-[#119dff] to-[#07d6c0] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-white/70">
@@ -470,7 +470,7 @@ function PurchaseManagerDashboard({ profileName }: DashboardProps) {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1d2f6f] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#3c78ff] via-[#119dff] to-[#07d6c0] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-white/70">
@@ -564,7 +564,7 @@ function ServiceCoordinatorDashboard({ profileName }: DashboardProps) {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 p-6 text-white shadow-[0_25px_70px_rgba(59,130,246,0.35)]">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#3c78ff] via-[#119dff] to-[#07d6c0] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-white/80">
@@ -777,7 +777,7 @@ function SalesCoordinatorDashboard({ profileName }: DashboardProps) {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1d2f6f] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#3c78ff] via-[#119dff] to-[#07d6c0] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-white/70">
@@ -908,7 +908,7 @@ function AccountantDashboard({ profileName }: DashboardProps) {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#1e293b] via-[#273b76] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#3c78ff] via-[#119dff] to-[#07d6c0] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-white/70">
@@ -1132,10 +1132,11 @@ function ServiceEngineerDashboard({ profileName }: DashboardProps) {
     { label: "Completed", value: 4, color: "from-emerald-300 to-emerald-500" },
     { label: "Escalations", value: 1, color: "from-rose-300 to-rose-500" },
   ];
+  const loadFills = ["#dbeafe", "#fef3c7", "#dcfce7", "#ffe4e6"];
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1d2f6f] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#3c78ff] via-[#119dff] to-[#07d6c0] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-white/70">
@@ -1180,20 +1181,33 @@ function ServiceEngineerDashboard({ profileName }: DashboardProps) {
       />
 
       <Section title="Workload status" variant="pastel">
-        <div className="grid gap-3 sm:grid-cols-4">
-          {load.map((item) => (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {load.map((item, index) => (
             <div
               key={item.label}
-              className="rounded-2xl border border-indigo-50 bg-white/90 p-4 text-center shadow-sm shadow-indigo-100 transition hover:-translate-y-[2px] hover:shadow-lg"
+              className="group relative overflow-hidden rounded-3xl border border-white/70 bg-white/95 p-4 shadow-[0_18px_45px_rgba(59,130,246,0.12)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(59,130,246,0.18)]"
             >
-              <div
-                className={`mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${item.color} text-lg font-semibold text-slate-900 shadow-inner shadow-white`}
-              >
-                {item.value}
+              <div className="absolute inset-0 opacity-50 blur-2xl bg-white" />
+              <div className="relative flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl shadow-inner shadow-white/70 ring-2 ring-white/60 transition duration-300 group-hover:scale-105"
+                    style={{ backgroundColor: loadFills[index % loadFills.length] }}
+                  >
+                    <span className="relative text-lg font-extrabold text-slate-900">
+                      {item.value}
+                    </span>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-600">
+                      {item.label}
+                    </p>
+                    <p className="text-[11px] font-semibold text-indigo-600 opacity-0 transition duration-200 group-hover:opacity-100">
+                      Tap for details
+                    </p>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                {item.label}
-              </p>
             </div>
           ))}
         </div>
@@ -1306,7 +1320,7 @@ function SalesExecutiveDashboard({ profileName }: DashboardProps) {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1d2f6f] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#3c78ff] via-[#119dff] to-[#07d6c0] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-white/70">
@@ -1436,7 +1450,7 @@ function ServiceManagerDashboard({ profileName }: DashboardProps) {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1d2f6f] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#3c78ff] via-[#119dff] to-[#07d6c0] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-white/70">
