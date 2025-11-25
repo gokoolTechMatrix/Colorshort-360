@@ -1,5 +1,6 @@
 "use client";
 
+import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
@@ -83,125 +84,17 @@ export default function AdminSettingsPage() {
   const [savingMemberId, setSavingMemberId] = useState<string | null>(null);
   const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const settingsDirtyRef = useRef(false);
-  const sidebarLinks = [
-    {
-      label: "Dashboard Overview",
-      href: "/dashboard",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          className="h-5 w-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        >
-          <path d="M4 13h6V4H4v9Zm10 7h6v-8h-6v8ZM4 20h6v-5H4v5ZM14 4v5h6V4h-6Z" />
-        </svg>
-      ),
-    },
-    {
-      label: "User Creation",
-      href: "/user-creation",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          className="h-5 w-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        >
-          <path d="M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm-9 13v-1a5 5 0 0 1 5-5h2" />
-          <path d="M16 17h6m-3-3v6" />
-        </svg>
-      ),
-    },
-    {
-      label: "Product List",
-      href: "/product-list",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          className="h-5 w-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        >
-          <path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z" />
-        </svg>
-      ),
-    },
-    {
-      label: "Stock Insights",
-      href: "#",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          className="h-5 w-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        >
-          <path d="m4 15 4-4 4 4 6-6" />
-          <path d="M18 9h4v4" />
-        </svg>
-      ),
-    },
-    {
-      label: "Client Registry",
-      href: "#",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          className="h-5 w-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        >
-          <path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm-4 7c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5Z" />
-        </svg>
-      ),
-    },
-    {
-      label: "Reports & Exports",
-      href: "#",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          className="h-5 w-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        >
-          <path d="M7 4h10l4 4v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
-          <path d="M7 10h10M7 14h6" />
-        </svg>
-      ),
-    },
-    {
-      label: "Settings",
-      href: "/admin-settings",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          className="h-5 w-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        >
-          <path d="m4 6 2-2 2 2h8l2-2 2 2-2 2 2 2-2 2 2 2-2 2-2-2h-8l-2 2-2-2 2-2-2-2 2-2-2-2Z" />
-          <circle cx="12" cy="12" r="2.5" />
-        </svg>
-      ),
-    },
-  ];
+  const handleLogout = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      router.push("/");
+    }
+  };
 
   const fetchCompanyData = async () => {
     setIsLoadingSettings(true);
@@ -503,51 +396,16 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50">
-      <aside
-        className={`relative hidden flex-col border-r border-slate-200 bg-white/95 px-6 pb-6 pt-14 shadow-sm lg:flex ${
-          collapsed ? "w-24" : "w-72"
-        }`}
-      >
-        <button
-          aria-label="Toggle sidebar"
-          onClick={() => setCollapsed((prev) => !prev)}
-          className="absolute right-3 top-3 rounded-full border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm transition hover:text-indigo-500"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          >
-            <path d="M4 6h16M8 12h12M4 18h16" />
-          </svg>
-        </button>
-
-        <div className="flex items-center justify-center pb-6">
-          <img
-            src={logoSrc}
-            alt="Company logo"
-            className={`object-contain ${collapsed ? "h-14 w-14" : "h-20 w-20"}`}
-          />
-        </div>
-
-        <nav className="flex flex-col gap-1 text-sm font-medium text-slate-600">
-          {sidebarLinks.map((link) => (
-            <button
-              key={link.label}
-              className={`flex items-center gap-3 rounded-xl px-4 py-3 transition hover:bg-slate-100 ${
-                link.href === "/admin-settings" ? "bg-indigo-50 text-indigo-600" : ""
-              }`}
-              onClick={() => router.push(link.href)}
-            >
-              <span className="text-slate-400">{link.icon}</span>
-              {!collapsed && <span>{link.label}</span>}
-            </button>
-          ))}
-        </nav>
-      </aside>
+      <DashboardSidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed((prev) => !prev)}
+        companyLogo={logoSrc}
+        onLogout={handleLogout}
+        isSigningOut={isSigningOut}
+        activeHref="/admin-settings"
+        showSettings
+        showUserCreation
+      />
 
       <main className="flex-1 px-4 py-8 md:px-8">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">

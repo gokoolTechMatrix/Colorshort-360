@@ -1,5 +1,6 @@
 "use client";
 
+import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -40,83 +41,14 @@ const mockLowStock = [
 
 const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() ?? "admin@qube.com";
 
-const sidebarLinks = [
-    {
-        label: "Dashboard Overview",
-        href: "/dashboard/store-manager",
-        icon: (
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M4 13h6V4H4v9Zm10 7h6v-8h-6v8ZM4 20h6v-5H4v5ZM14 4v5h6V4h-6Z" />
-            </svg>
-        ),
-    },
-    {
-        label: "Inventory Management",
-        href: "#",
-        icon: (
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <path d="M9 22V12h6v10" />
-            </svg>
-        ),
-    },
-    {
-        label: "Spare Parts",
-        href: "#",
-        icon: (
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M12 2v20M17 7l-5-5-5 5M7 17l5 5 5-5" />
-            </svg>
-        ),
-    },
-    {
-        label: "Purchase Orders",
-        href: "#",
-        icon: (
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
-            </svg>
-        ),
-    },
-    {
-        label: "GRN - Goods Receipt",
-        href: "#",
-        icon: (
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                <path d="M12 22V12M22 7.5L12 12 2 7.5" />
-            </svg>
-        ),
-    },
-    {
-        label: "Stock Alerts",
-        href: "#",
-        icon: (
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <path d="M12 9v4M12 17h.01" />
-            </svg>
-        ),
-    },
-    {
-        label: "Reports & Exports",
-        href: "#",
-        icon: (
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M7 4h10l4 4v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
-                <path d="M7 10h10M7 14h6" />
-            </svg>
-        ),
-    },
-];
-
 export default function StoreManagerDashboard() {
     const router = useRouter();
     const supabase = useMemo(() => getSupabaseBrowserClient(), []);
     const [collapsed, setCollapsed] = useState(false);
     const [companyLogo, setCompanyLogo] = useState("/image.png");
     const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+    const [isSigningOut, setIsSigningOut] = useState(false);
     const [activeModal, setActiveModal] = useState<string | null>(null);
 
     useEffect(() => {
@@ -129,11 +61,11 @@ export default function StoreManagerDashboard() {
                 return;
             }
             const role = (user.user_metadata?.role as string | undefined)?.toLowerCase() ?? "";
-            const allowed =
-                user.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
-                role === "super_admin" ||
-                role === "store manager";
+            const superAdmin =
+                user.email?.toLowerCase() === SUPER_ADMIN_EMAIL || role === "super_admin";
+            const allowed = superAdmin || role === "store manager";
             setIsAuthorized(allowed);
+            setIsSuperAdmin(superAdmin);
         });
         return () => {
             active = false;
@@ -151,6 +83,16 @@ export default function StoreManagerDashboard() {
             })
             .catch(() => { });
     }, []);
+
+    const handleLogout = async () => {
+        if (isSigningOut) return;
+        setIsSigningOut(true);
+        try {
+            await supabase.auth.signOut();
+        } finally {
+            router.push("/");
+        }
+    };
 
     if (isAuthorized === null) {
         return (
@@ -185,53 +127,16 @@ export default function StoreManagerDashboard() {
 
     return (
         <div className="flex min-h-screen bg-slate-50">
-            {/* Sidebar */}
-            <aside
-                className={`relative flex ${collapsed ? "w-24" : "w-72"} flex-col border-r border-slate-200 bg-white/95 px-6 pb-6 pt-14 transition-all duration-300`}
-            >
-                <button
-                    aria-label="Toggle sidebar"
-                    onClick={() => setCollapsed((prev) => !prev)}
-                    className="absolute right-3 top-3 rounded-full border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm transition hover:text-amber-600"
-                >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                        <path d="M4 6h16M8 12h12M4 18h16" />
-                    </svg>
-                </button>
-
-                <div className="flex items-center justify-center pb-6">
-                    <img
-                        src={companyLogo}
-                        alt="Company logo"
-                        className={`object-contain transition-all duration-300 ${collapsed ? "h-14 w-14" : "h-20 w-20"}`}
-                    />
-                </div>
-
-                <nav className="flex flex-col gap-1 text-sm font-medium text-slate-600">
-                    {sidebarLinks.map((link) => (
-                        <button
-                            key={link.label}
-                            className="flex items-center gap-3 rounded-xl px-4 py-3 transition hover:bg-amber-50 hover:text-amber-600"
-                            onClick={() => link.href !== "#" && router.push(link.href)}
-                        >
-                            <span className="text-slate-400">{link.icon}</span>
-                            {!collapsed && <span>{link.label}</span>}
-                        </button>
-                    ))}
-                </nav>
-
-                <button
-                    onClick={() => router.push("/")}
-                    className="mt-auto flex items-center justify-center gap-2 rounded-2xl border border-rose-100 bg-rose-50/80 px-4 py-3 text-sm font-semibold text-rose-500 transition hover:bg-rose-100"
-                >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-rose-500">
-                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                            <path d="M3 5h8m0 0v14m0-14 6 6m-6 8 6-6" />
-                        </svg>
-                    </span>
-                    {!collapsed && <span>Logout</span>}
-                </button>
-            </aside>
+            <DashboardSidebar
+                collapsed={collapsed}
+                onToggle={() => setCollapsed((prev) => !prev)}
+                companyLogo={companyLogo}
+                onLogout={handleLogout}
+                isSigningOut={isSigningOut}
+                activeHref="/dashboard"
+                showSettings={isSuperAdmin}
+                showUserCreation={isSuperAdmin}
+            />
 
             {/* Main Content */}
             <main className="flex-1 p-8">

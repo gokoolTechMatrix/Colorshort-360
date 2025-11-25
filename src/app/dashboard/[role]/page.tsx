@@ -1,11 +1,11 @@
 "use client";
 
+import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getRoleFromEmail } from "@/lib/role-map";
-import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import type { ReactElement } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, ReactElement } from "react";
 
 const SUPER_ADMIN_EMAIL =
   process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() ??
@@ -14,100 +14,6 @@ const SUPER_ADMIN_EMAIL =
 const slugifyRole = (role?: string | null) =>
   role?.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") ??
   "";
-
-type SidebarIconProps = { className?: string };
-
-type SidebarLink = {
-  label: string;
-  href: string;
-  Icon: (props: SidebarIconProps) => ReactElement;
-};
-
-const DashboardIcon = ({ className }: SidebarIconProps) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M3 12h8V3H3v9zM13 3h8v6h-8zM13 13h8v8h-8zM3 15h8v6H3z" />
-  </svg>
-);
-
-const ReportsIcon = ({ className }: SidebarIconProps) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M5 4h14v16H5z" />
-    <path d="M9 8h6M9 12h6M9 16h3" />
-  </svg>
-);
-
-const InventoryIcon = ({ className }: SidebarIconProps) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M3 7l9-4 9 4-9 4-9-4z" />
-    <path d="M3 12l9 4 9-4" />
-    <path d="M3 17l9 4 9-4" />
-  </svg>
-);
-
-const ClientsIcon = ({ className }: SidebarIconProps) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <circle cx="9" cy="8" r="3" />
-    <circle cx="17" cy="10" r="3" />
-    <path d="M4 20a5 5 0 0 1 10 0" />
-    <path d="M14 20a4 4 0 0 1 8 0" />
-  </svg>
-);
-
-const SupportIcon = ({ className }: SidebarIconProps) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <circle cx="12" cy="12" r="9" />
-    <path d="M12 7a5 5 0 0 0-5 5v1a3 3 0 0 0 3 3h2" />
-    <path d="M15 7a5 5 0 0 1 5 5v1a3 3 0 0 1-3 3h-2v1" />
-  </svg>
-);
-
-const baseSidebarLinks: SidebarLink[] = [
-  { label: "Dashboard", href: "/dashboard", Icon: DashboardIcon },
-  { label: "Reports & Exports", href: "/reports", Icon: ReportsIcon },
-  { label: "Inventory", href: "/inventory", Icon: InventoryIcon },
-  { label: "Clients", href: "/clients", Icon: ClientsIcon },
-  { label: "Support", href: "/support", Icon: SupportIcon },
-];
 
 type DashboardProps = { profileName: string };
 type DashboardConfig = {
@@ -127,6 +33,10 @@ const dashboards: Record<string, DashboardConfig> = {
   "service-co-ordinator": {
     title: "Service Co-ordinator Dashboard",
     Component: ServiceCoordinatorDashboard,
+  },
+  hr: {
+    title: "HR Dashboard",
+    Component: HrDashboard,
   },
   "sales-co-ordinator": {
     title: "Sales Co-ordinator Dashboard",
@@ -158,6 +68,9 @@ export default function RoleDashboardPage() {
 
   const [profileName, setProfileName] = useState("Team Member");
   const [roleSlug, setRoleSlug] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const [companyLogo, setCompanyLogo] = useState("/image.png");
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
@@ -229,9 +142,30 @@ export default function RoleDashboardPage() {
     };
   }, [requestedSlug, router, supabase]);
 
+  useEffect(() => {
+    fetch("/api/company-settings")
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          settings?: { logo_url?: string };
+        };
+        if (payload?.settings?.logo_url) {
+          setCompanyLogo(payload.settings.logo_url);
+        }
+      })
+      .catch(() => {
+        // best-effort logo fetch
+      });
+  }, []);
+
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.replace("/login");
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      router.replace("/login");
+    }
   };
 
   if (isChecking) {
@@ -266,55 +200,14 @@ export default function RoleDashboardPage() {
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-white via-slate-50 to-indigo-50">
-      <aside className="hidden w-72 flex-col border-r border-slate-200 bg-white/95 p-6 lg:flex">
-        <div className="mb-6 flex flex-col items-center text-center text-sm">
-          <Image
-            src="/image.png"
-            alt="Colorsort360 logo"
-            width={80}
-            height={80}
-            priority
-            className="mb-3 h-20 w-20 rounded-2xl border border-slate-100 object-contain p-2"
-          />
-          <p className="text-xs uppercase tracking-[0.4em] text-indigo-400">
-            Colorsort360
-          </p>
-          <p className="mt-2 text-lg font-semibold text-slate-900">
-            Hi, {profileName}
-          </p>
-        </div>
-        <nav className="flex flex-col gap-1 text-sm font-medium text-slate-600">
-          {baseSidebarLinks.map(({ Icon, ...link }) => {
-            const isActive = link.href === "/dashboard";
-            return (
-              <button
-                key={link.label}
-                onClick={() => link.href !== "#" && router.push(link.href)}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 transition hover:bg-slate-100 ${
-                  isActive ? "bg-indigo-50 text-indigo-600" : ""
-                }`}
-              >
-                <span
-                  className={`flex h-10 w-10 items-center justify-center rounded-2xl border text-slate-500 ${
-                    isActive
-                      ? "border-indigo-100 bg-indigo-50 text-indigo-600"
-                      : "border-slate-100 bg-white"
-                  }`}
-                >
-                  <Icon className="h-5 w-5" />
-                </span>
-                <span>{link.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-        <button
-          onClick={handleLogout}
-          className="mt-auto rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-        >
-          Logout
-        </button>
-      </aside>
+      <DashboardSidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed((prev) => !prev)}
+        companyLogo={companyLogo}
+        onLogout={handleLogout}
+        isSigningOut={isSigningOut}
+        activeHref="/dashboard"
+      />
 
       <main className="flex-1 px-6 py-10">
         <header className="mb-8">
@@ -395,13 +288,20 @@ function Section({
   title,
   subtitle,
   children,
+  variant = "plain",
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
+  variant?: "plain" | "pastel";
 }) {
+  const baseClasses =
+    "rounded-[32px] border border-slate-100 bg-white/90 p-6 shadow-[0_25px_85px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_30px_110px_rgba(15,23,42,0.12)]";
+  const pastelClasses =
+    "rounded-[32px] border border-indigo-50 bg-gradient-to-br from-white via-indigo-50/60 to-white p-6 shadow-[0_25px_85px_rgba(99,102,241,0.12)] transition hover:-translate-y-1 hover:shadow-[0_30px_120px_rgba(99,102,241,0.16)]";
+
   return (
-    <section className="rounded-[32px] border border-slate-100 bg-white/90 p-6 shadow-[0_25px_85px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_30px_110px_rgba(15,23,42,0.12)]">
+    <section className={variant === "pastel" ? pastelClasses : baseClasses}>
       <div className="mb-4 space-y-1">
         <p className="text-sm font-semibold text-slate-700">{title}</p>
         {subtitle && (
@@ -566,54 +466,208 @@ function PurchaseManagerDashboard({ profileName }: DashboardProps) {
 }
 
 function ServiceCoordinatorDashboard({ profileName }: DashboardProps) {
+  const queue = [
+    { ticket: "T-312", issue: "Belt slippage", site: "Chennai", age: "28m", priority: "High" },
+    { ticket: "T-305", issue: "Sensor fault", site: "Coimbatore", age: "1h 12m", priority: "Medium" },
+    { ticket: "T-299", issue: "Motor vibration", site: "Madurai", age: "2h 05m", priority: "High" },
+    { ticket: "T-295", issue: "HMI restart", site: "Trichy", age: "3h 42m", priority: "Low" },
+  ];
+  const engineers = [
+    { name: "Aravind", zone: "North", jobs: 3, eta: "18m", status: "Onsite" },
+    { name: "Meena", zone: "Central", jobs: 2, eta: "32m", status: "Enroute" },
+    { name: "Karthik", zone: "South", jobs: 4, eta: "54m", status: "On call" },
+    { name: "Rahul", zone: "West", jobs: 1, eta: "08m", status: "Wrapping" },
+  ];
+  const sla = [
+    { label: "First Response", value: 86 },
+    { label: "Resolution", value: 72 },
+    { label: "Follow-up", value: 91 },
+  ];
+
   return (
     <div className="space-y-6">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 p-6 text-white shadow-[0_25px_70px_rgba(59,130,246,0.35)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/80">
+              Service control
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold">
+              Hi {profileName}, keep the tickets flowing.
+            </h2>
+            <p className="mt-1 text-sm text-white/80">
+              Dispatch engineers faster, watch SLA health, and unblock high-priority calls.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <span className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur">
+              Live Tickets: 18
+            </span>
+            <span className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur">
+              Field Engineers: 12
+            </span>
+            <span className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur">
+              SLA: 92% on track
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
+          <button className="rounded-2xl bg-white px-4 py-2 text-sky-700 shadow-lg shadow-sky-200 transition hover:-translate-y-[1px] hover:shadow-xl">
+            + Dispatch engineer
+          </button>
+          <button className="rounded-2xl border border-white/60 px-4 py-2 text-white transition hover:bg-white/15">
+            View escalations
+          </button>
+        </div>
+      </div>
+
       <KpiGrid
         items={[
-          { label: "New Complaints Today", value: "5" },
-          { label: "Jobs Assigned", value: "12" },
-          { label: "Pending Jobs", value: "7" },
-          { label: "Completed Today", value: "4" },
+          { label: "New Complaints Today", value: "12", subLabel: "+4 vs yesterday" },
+          { label: "Jobs Assigned", value: "18", subLabel: "5 awaiting dispatch" },
+          { label: "Pending Jobs", value: "7", subLabel: "3 overdue" },
+          { label: "Completed Today", value: "9", subLabel: "Avg TTR 56m" },
         ]}
       />
       <Section
         title="Service pipeline"
         subtitle={`Pipeline health for ${profileName}`}
+        variant="pastel"
       >
-        <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-4">
           {[
-            { stage: "Logged", value: 10 },
-            { stage: "Assigned", value: 12 },
-            { stage: "In Progress", value: 8 },
-            { stage: "Completed", value: 4 },
+            { stage: "Logged", value: 22, color: "from-indigo-200 to-indigo-400" },
+            { stage: "Assigned", value: 18, color: "from-sky-200 to-sky-400" },
+            { stage: "In Progress", value: 11, color: "from-amber-200 to-amber-400" },
+            { stage: "Completed", value: 9, color: "from-emerald-200 to-emerald-400" },
           ].map((item) => (
-            <div key={item.stage} className="text-center">
-              <div className="mx-auto mb-2 h-20 w-20 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-300 p-6 text-2xl font-semibold text-indigo-600 shadow-inner shadow-white">
+            <div
+              key={item.stage}
+              className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm shadow-indigo-50 transition hover:-translate-y-[2px] hover:shadow-lg"
+            >
+              <div
+                className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${item.color} text-2xl font-semibold text-slate-900 shadow-inner shadow-white`}
+              >
                 {item.value}
               </div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              <p className="mt-3 text-center text-xs uppercase tracking-[0.3em] text-slate-500">
                 {item.stage}
               </p>
             </div>
           ))}
         </div>
       </Section>
+
+      <Section title="Live queue">
+        <div className="grid gap-3 lg:grid-cols-2">
+          {queue.map((ticket, index) => (
+            <div
+              key={ticket.ticket}
+              className="relative overflow-hidden rounded-2xl border border-slate-100 bg-gradient-to-br from-white via-slate-50 to-white p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <div className="absolute inset-0 opacity-70 blur-2xl" style={{ background: `radial-gradient(circle at 30% 20%, rgba(59,130,246,0.12), transparent 35%), radial-gradient(circle at 70% 0%, rgba(16,185,129,0.12), transparent 30%)` }} />
+              <div className="relative flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                    {ticket.ticket} · {ticket.site}
+                  </p>
+                  <p className="text-base font-semibold text-slate-900">
+                    {ticket.issue}
+                  </p>
+                  <p className="text-xs font-semibold text-slate-500">
+                    Age: {ticket.age}
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    ticket.priority === "High"
+                      ? "bg-rose-50 text-rose-600"
+                      : ticket.priority === "Medium"
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-emerald-50 text-emerald-700"
+                  }`}
+                >
+                  {ticket.priority}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Engineer utilization" variant="pastel">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {engineers.map((engineer) => (
+            <div
+              key={engineer.name}
+              className="rounded-2xl border border-indigo-50 bg-white/90 p-4 text-sm shadow-md shadow-indigo-100 transition hover:-translate-y-[2px] hover:shadow-lg"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-base font-semibold text-slate-900">
+                  {engineer.name}
+                </p>
+                <span className="rounded-full bg-indigo-50 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
+                  {engineer.zone}
+                </span>
+              </div>
+              <p className="mt-2 text-xs uppercase tracking-[0.3em] text-slate-400">
+                Status: {engineer.status}
+              </p>
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-700">
+                  Jobs: {engineer.jobs}
+                </p>
+                <p className="text-xs font-semibold text-emerald-600">
+                  ETA {engineer.eta}
+                </p>
+              </div>
+              <div className="mt-2 h-2 rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-emerald-400"
+                  style={{ width: `${Math.min(engineer.jobs * 18 + 30, 100)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="SLA health">
+        <div className="grid gap-4 sm:grid-cols-3">
+          {sla.map((metric) => (
+            <div
+              key={metric.label}
+              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                {metric.label}
+              </p>
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-2xl font-semibold text-slate-900">
+                  {metric.value}%
+                </p>
+                <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-600">
+                  Target 90%
+                </span>
+              </div>
+              <div className="mt-3 h-2.5 rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600"
+                  style={{ width: `${metric.value}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
       <Section title="Today's priority tasks">
         <List
           items={[
-            "Assign job for motor overheating (Kumar Industries)",
-            "Follow-up with Aravind on T-298",
-            "Schedule visit for conveyor fault at Sri Plastics",
-          ]}
-        />
-      </Section>
-      <Section title="Quick actions">
-        <QuickActions
-          actions={[
-            "+ Log Complaint",
-            "+ Assign Engineer",
-            "+ Schedule Visit",
-            "+ Update Status",
+            "Dispatch engineer for motor overheating (Kumar Industries)",
+            "Follow-up with Aravind on T-298 and update ETA",
+            "Schedule site visit for conveyor fault at Sri Plastics",
+            "Call back T-305 and confirm spare readiness",
           ]}
         />
       </Section>
@@ -682,50 +736,215 @@ function SalesCoordinatorDashboard({ profileName }: DashboardProps) {
 }
 
 function AccountantDashboard({ profileName }: DashboardProps) {
+  const receivables = [
+    { label: "0-7 days", value: "₹ 6,20,000", percent: 38, tone: "emerald" },
+    { label: "8-15 days", value: "₹ 4,10,000", percent: 25, tone: "sky" },
+    { label: "16-30 days", value: "₹ 3,20,000", percent: 20, tone: "amber" },
+    { label: "30+ days", value: "₹ 1,30,000", percent: 8, tone: "rose" },
+  ];
+  const payables = [
+    { vendor: "Steel Traders", due: "₹ 2,45,000", aging: "Due in 2d", tone: "rose" },
+    { vendor: "Fasteners Ltd", due: "₹ 1,80,000", aging: "Due in 5d", tone: "amber" },
+    { vendor: "Logistics Hub", due: "₹ 95,000", aging: "Due in 8d", tone: "sky" },
+    { vendor: "Packaging Co", due: "₹ 62,000", aging: "Due in 12d", tone: "emerald" },
+  ];
+  const taxes = [
+    { label: "GST Payable", value: "₹ 1,48,720", detail: "Next filing in 5 days" },
+    { label: "GST Collected", value: "₹ 1,86,400", detail: "Set-off ready" },
+    { label: "TDS Payable", value: "₹ 82,300", detail: "Due on 7th" },
+  ];
+
   return (
     <div className="space-y-6">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#1e293b] via-[#273b76] to-[#3b82f6] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/70">
+              Finance cockpit
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold">
+              Hello {profileName}, cash & compliance at a glance.
+            </h2>
+            <p className="mt-1 text-sm text-white/80">
+              Monitor receivables, payables, and tax positions in real time.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm font-semibold">
+            <span className="rounded-2xl bg-white/15 px-4 py-2 backdrop-blur">
+              Cash on hand: ₹ 9.2 Cr
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 backdrop-blur">
+              Net flow today: +₹ 74.5 L
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 backdrop-blur">
+              Filing in 5 days
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button className="rounded-2xl bg-white px-4 py-2 text-sky-700 shadow-lg shadow-sky-200 transition hover:-translate-y-[1px] hover:shadow-xl">
+            + Create invoice
+          </button>
+          <button className="rounded-2xl border border-white/60 px-4 py-2 text-white transition hover:bg-white/15">
+            Reconcile payments
+          </button>
+          <button className="rounded-2xl border border-white/60 px-4 py-2 text-white transition hover:bg-white/15">
+            Export aging
+          </button>
+        </div>
+      </div>
+
       <KpiGrid
         items={[
-          { label: "Total Receivables", value: "₹4,80,000" },
-          { label: "Total Payables", value: "₹2,40,000" },
-          { label: "GST Collected", value: "₹86,400" },
-          { label: "GST Payable", value: "₹48,720" },
+          { label: "Total Receivables", value: "₹ 14,80,000", subLabel: "↑ ₹ 2.1L vs last week" },
+          { label: "Total Payables", value: "₹ 12,40,000", subLabel: "↓ ₹ 80k vs last week" },
+          { label: "GST Collected", value: "₹ 1,86,400", subLabel: "Ready for set-off" },
+          { label: "GST Payable", value: "₹ 1,48,720", subLabel: "Due in 5 days" },
         ]}
       />
       <Section
-        title="Cash flow summary"
+        title="Cash flow snapshot"
         subtitle={`Daily overview for ${profileName}`}
+        variant="pastel"
       >
-        <div className="grid gap-4 sm:grid-cols-2 text-sm text-slate-600">
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-emerald-600">
-              Daily inflow
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-emerald-700">
-              ₹1,20,000
-            </p>
-            <p className="text-xs text-emerald-600">+8% vs last week</p>
-          </div>
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-rose-600">
-              Daily outflow
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-rose-700">
-              ₹45,000
-            </p>
-            <p className="text-xs text-rose-600">-3% vs last week</p>
-          </div>
+        <div className="grid gap-4 text-sm text-slate-700 sm:grid-cols-3">
+          {[
+            { label: "Inflow today", value: "₹ 11,20,000", detail: "+8% vs last week", tone: "emerald" },
+            { label: "Outflow today", value: "₹ 1,45,000", detail: "-3% vs last week", tone: "rose" },
+            { label: "Net position", value: "+₹ 9,75,000", detail: "After payables", tone: "sky" },
+          ].map((card) => (
+            <div
+              key={card.label}
+              className="rounded-2xl border border-indigo-50 bg-white/90 p-4 shadow-md shadow-indigo-100 transition hover:-translate-y-[2px] hover:shadow-lg"
+            >
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                {card.label}
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-900">
+                {card.value}
+              </p>
+              <p
+                className={`text-xs font-semibold ${
+                  card.tone === "emerald"
+                    ? "text-emerald-600"
+                    : card.tone === "rose"
+                      ? "text-rose-600"
+                      : "text-sky-600"
+                }`}
+              >
+                {card.detail}
+              </p>
+            </div>
+          ))}
         </div>
       </Section>
+
+      <Section title="Receivables aging" variant="pastel">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {receivables.map((bucket) => (
+            <div
+              key={bucket.label}
+              className="rounded-2xl border border-slate-100 bg-white/90 p-4 shadow-sm shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                {bucket.label}
+              </p>
+              <p className="mt-2 text-xl font-semibold text-slate-900">
+                {bucket.value}
+              </p>
+              <div className="mt-3 h-2 rounded-full bg-slate-100">
+                <div
+                  className={`h-full rounded-full ${
+                    bucket.tone === "rose"
+                      ? "bg-rose-400"
+                      : bucket.tone === "amber"
+                        ? "bg-amber-400"
+                        : bucket.tone === "sky"
+                          ? "bg-sky-400"
+                          : "bg-emerald-400"
+                  }`}
+                  style={{ width: `${bucket.percent}%` }}
+                />
+              </div>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                {bucket.percent}% of total
+              </p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Payables by urgency">
+        <div className="grid gap-3 lg:grid-cols-2">
+          {payables.map((bill) => (
+            <div
+              key={bill.vendor}
+              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-base font-semibold text-slate-900">
+                  {bill.vendor}
+                </p>
+                <span
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                    bill.tone === "rose"
+                      ? "bg-rose-50 text-rose-600"
+                      : bill.tone === "amber"
+                        ? "bg-amber-50 text-amber-700"
+                        : bill.tone === "sky"
+                          ? "bg-sky-50 text-sky-700"
+                          : "bg-emerald-50 text-emerald-700"
+                  }`}
+                >
+                  {bill.aging}
+                </span>
+              </div>
+              <p className="mt-2 text-sm font-semibold text-slate-700">
+                {bill.due}
+              </p>
+              <div className="mt-2 h-2 rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-sky-400"
+                  style={{ width: "68%" }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Tax summary" variant="pastel">
+        <div className="grid gap-3 sm:grid-cols-3">
+          {taxes.map((tax) => (
+            <div
+              key={tax.label}
+              className="rounded-2xl border border-indigo-50 bg-white/90 p-4 shadow-sm shadow-indigo-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                {tax.label}
+              </p>
+              <p className="mt-2 text-xl font-semibold text-slate-900">
+                {tax.value}
+              </p>
+              <p className="text-xs font-semibold text-slate-600">
+                {tax.detail}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
       <Section title="Pending tasks">
         <List
           items={[
-            "4 invoices due today",
-            "2 vendor bills pending approval",
-            "GST filing due in 5 days",
+            "Review 4 invoices due today and trigger reminders",
+            "Approve 2 vendor bills for payment run",
+            "Prepare GST filing pack (due in 5 days)",
+            "Reconcile yesterday’s bank statement",
           ]}
         />
       </Section>
+
       <Section title="Quick actions">
         <QuickActions
           actions={[
@@ -733,6 +952,8 @@ function AccountantDashboard({ profileName }: DashboardProps) {
             "+ Record Payment",
             "+ Add Expense",
             "+ Add Vendor Bill",
+            "+ Export Aging",
+            "+ Reconcile Bank",
           ]}
         />
       </Section>
@@ -876,3 +1097,691 @@ function ServiceManagerDashboard({ profileName }: DashboardProps) {
     </div>
   );
 }
+
+type HrKpi = { label: string; value: number | string; detail?: string; trend?: string };
+type HrData = {
+  filters: {
+    locations: string[];
+    departments: string[];
+    dateRanges: string[];
+  };
+  kpis: { primary: HrKpi[]; secondary: { label: string; value: number | string; insight: string }[] };
+  navCards: string[];
+  quickActions: string[];
+  attendance: {
+    summary: { total: number; present: number; absent: number; leave: number; onField: number; unmarked: number };
+    rows: Array<{
+      department: string;
+      total: number;
+      present: number;
+      absent: number;
+      leave: number;
+      onField: number;
+      unmarked: number;
+      presentPercent: number;
+    }>;
+  };
+  approvals: Array<{
+    type: string;
+    reqId: string;
+    employee: string;
+    dept: string;
+    details: string;
+    requestedOn: string;
+    ageing: string;
+  }>;
+  joiningsExits: Array<{
+    type: string;
+    title: string;
+    dept: string;
+    location: string;
+    date: string;
+    status: string;
+  }>;
+  recruitment: Array<{
+    position: string;
+    dept: string;
+    location: string;
+    requiredBy: string;
+    pipeline: number;
+    stage: string;
+    risk: string;
+  }>;
+  skills: Array<{
+    employee: string;
+    dept: string;
+    certification: string;
+    issuer: string;
+    expiry: string;
+    risk: string;
+  }>;
+  fieldStatus: Array<{
+    technician: string;
+    region: string;
+    skill: string;
+    firstJob: string;
+    jobsToday: number;
+    checkInStatus: string;
+    lastUpdated: string;
+  }>;
+  analytics: {
+    headcount: Array<{ label: string; value: number }>;
+    attrition: Array<{ label: string; value: number }>;
+    overtimeByDept: Array<{ label: string; value: number }>;
+    leaveDistribution: Array<{ label: string; value: number }>;
+  };
+};
+
+const hrDefaults: HrData = {
+  filters: {
+    locations: ["All Locations", "HO", "Factory-Coimbatore", "Service-South", "Service-North"],
+    departments: ["All", "Production", "Sales", "Service", "Stores", "Accounts", "Management"],
+    dateRanges: ["Today", "This Week", "This Month", "Last 30 Days", "Custom"],
+  },
+  kpis: {
+    primary: [
+      { label: "Total Employees", value: 138, detail: "On-roll headcount", trend: "+6 quarterly" },
+      { label: "Present Today", value: 124, detail: "All locations", trend: "89.9%" },
+      { label: "Today's Absentees", value: 14, detail: "4 unplanned", trend: "+2 vs yesterday" },
+      { label: "Pending HR Approvals", value: 19, detail: "Leave, expenses, attendance", trend: "7 due today" },
+      { label: "Open Positions", value: 5, detail: "Recruitment ongoing", trend: "2 offers sent" },
+      { label: "Attrition (12M)", value: "8.5%", detail: "Rolling attrition", trend: "Stable" },
+    ],
+    secondary: [
+      { label: "Overtime (This Month)", value: "212 hrs", insight: "High in Production" },
+      { label: "Training Coverage", value: "78%", insight: "Target: 90%" },
+      { label: "Leave Utilization", value: "62%", insight: "YTD usage" },
+      { label: "Certification Expiry (30 Days)", value: 5, insight: "3 Service, 2 Electrical" },
+    ],
+  },
+  navCards: [
+    "Employee Directory",
+    "Attendance & Shifts",
+    "Leave Management",
+    "Travel & Expense",
+    "Recruitment & Onboarding",
+    "Training & Skill Matrix",
+    "Performance & Appraisals",
+    "HR Analytics",
+  ],
+  quickActions: [
+    "+ Add Employee",
+    "Approve Today's Leaves",
+    "Approve Regularizations",
+    "Approve Expenses",
+    "Publish Shift Roster",
+    "Assign Training",
+    "Export Attendance (Payroll)",
+    "Download HR MIS",
+  ],
+  attendance: {
+    summary: { total: 138, present: 124, absent: 14, leave: 7, onField: 32, unmarked: 3 },
+    rows: [
+      { department: "Production", total: 44, present: 38, absent: 2, leave: 3, onField: 0, unmarked: 1, presentPercent: 86 },
+      { department: "Service", total: 41, present: 33, absent: 3, leave: 0, onField: 5, unmarked: 0, presentPercent: 80 },
+      { department: "Sales", total: 22, present: 19, absent: 1, leave: 0, onField: 2, unmarked: 0, presentPercent: 86 },
+      { department: "Stores", total: 9, present: 8, absent: 0, leave: 1, onField: 0, unmarked: 0, presentPercent: 89 },
+      { department: "Accounts", total: 13, present: 12, absent: 1, leave: 0, onField: 0, unmarked: 0, presentPercent: 92 },
+      { department: "Management", total: 9, present: 8, absent: 0, leave: 1, onField: 0, unmarked: 0, presentPercent: 89 },
+    ],
+  },
+  approvals: [
+    { type: "Leave", reqId: "LV-091", employee: "Praveen Kumar", dept: "Service", details: "2 days Sick Leave", requestedOn: "24 Nov", ageing: "1 day" },
+    { type: "Expense", reqId: "EX-144", employee: "Divya S", dept: "Sales", details: "Rs 13,250", requestedOn: "23 Nov", ageing: "2 days" },
+    { type: "Attendance", reqId: "AT-057", employee: "Selvam", dept: "Production", details: "Missed punch", requestedOn: "24 Nov", ageing: "1 day" },
+    { type: "Roster", reqId: "RS-017", employee: "Sathish", dept: "Production", details: "Shift B -> General", requestedOn: "24 Nov", ageing: "<1 day" },
+  ],
+  joiningsExits: [
+    { type: "Joining", title: "Service Engineer Trainee", dept: "Service", location: "Factory", date: "02 Dec", status: "Offer Accepted" },
+    { type: "Joining", title: "Accounts Executive", dept: "Accounts", location: "HO", date: "05 Dec", status: "Shortlisted" },
+    { type: "Exit", title: "Mohanraj", dept: "Stores", location: "Factory", date: "30 Nov", status: "Notice Period" },
+  ],
+  recruitment: [
+    { position: "Service Engineer", dept: "Service", location: "Madurai", requiredBy: "10 Dec", pipeline: 6, stage: "Interview", risk: "On Track" },
+    { position: "Stores Supervisor", dept: "Stores", location: "Factory", requiredBy: "15 Dec", pipeline: 2, stage: "Sourcing", risk: "At Risk" },
+    { position: "Production Operator", dept: "Production", location: "Factory", requiredBy: "01 Jan", pipeline: 4, stage: "Sourcing", risk: "On Track" },
+  ],
+  skills: [
+    { employee: "Suresh P", dept: "Service", certification: "Electrical Safety - HT", issuer: "TNEB", expiry: "12 Dec", risk: "High" },
+    { employee: "Arun K", dept: "Service", certification: "Sorter Installation Master", issuer: "Internal", expiry: "20 Dec", risk: "Medium" },
+    { employee: "Vimal", dept: "Production", certification: "Forklift License", issuer: "RTO", expiry: "05 Jan", risk: "Medium" },
+  ],
+  fieldStatus: [
+    { technician: "Arun K", region: "Coimbatore", skill: "Installation", firstJob: "9:15 AM", jobsToday: 3, checkInStatus: "On Job", lastUpdated: "10:22 AM" },
+    { technician: "Mahesh", region: "Guntur", skill: "Calibration", firstJob: "-", jobsToday: 2, checkInStatus: "Not Checked-in", lastUpdated: "-" },
+    { technician: "Kumar", region: "Davanagere", skill: "Electrical", firstJob: "8:50 AM", jobsToday: 4, checkInStatus: "Checked-in", lastUpdated: "10:05 AM" },
+  ],
+  analytics: {
+    headcount: [
+      { label: "Aug", value: 126 },
+      { label: "Sep", value: 128 },
+      { label: "Oct", value: 133 },
+      { label: "Nov", value: 138 },
+    ],
+    attrition: [
+      { label: "Aug", value: 9.1 },
+      { label: "Sep", value: 8.9 },
+      { label: "Oct", value: 8.7 },
+      { label: "Nov", value: 8.5 },
+    ],
+    overtimeByDept: [
+      { label: "Production", value: 110 },
+      { label: "Service", value: 48 },
+      { label: "Sales", value: 18 },
+      { label: "Stores", value: 12 },
+    ],
+    leaveDistribution: [
+      { label: "CL", value: 38 },
+      { label: "SL", value: 24 },
+      { label: "EL", value: 18 },
+      { label: "Comp Off", value: 12 },
+    ],
+  },
+};
+
+function HrDashboard({ profileName }: DashboardProps) {
+  const [data, setData] = useState<HrData>(hrDefaults);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filters, setFilters] = useState({
+    location: data.filters.locations[0],
+    department: data.filters.departments[0],
+    dateRange: data.filters.dateRanges[0],
+  });
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const response = await fetch("/api/hr-dashboard");
+        if (!response.ok) {
+          throw new Error("Request failed");
+        }
+        const payload = (await response.json()) as { data: HrData };
+        if (active && payload?.data) {
+          setData(payload.data);
+          setFilters({
+            location: payload.data.filters.locations[0] ?? "All Locations",
+            department: payload.data.filters.departments[0] ?? "All",
+            dateRange: payload.data.filters.dateRanges[0] ?? "Today",
+          });
+        }
+      } catch {
+        // keep defaults
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+    load();
+    return () => {
+      active = false;
+      if (toastTimer.current) {
+        clearTimeout(toastTimer.current);
+      }
+    };
+  }, []);
+
+  const triggerToast = (message: string) => {
+    if (toastTimer.current) {
+      clearTimeout(toastTimer.current);
+    }
+    setToast(message);
+    toastTimer.current = window.setTimeout(() => setToast(null), 1800);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#3c45b0] via-[#4b6be0] to-[#7a8ff5] p-6 text-white shadow-2xl shadow-[#3c45b0]/35 transition hover:shadow-[0_25px_80px_rgba(60,69,176,0.45)]">
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.4em] text-slate-100 drop-shadow-[0_1px_6px_rgba(0,0,0,0.25)]">Colorsort360</p>
+            <div className="mt-2 flex items-center gap-3 text-2xl font-semibold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.25)]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-white shadow-inner shadow-white/20 backdrop-blur">
+                <span className="text-xl">HR</span>
+              </div>
+              <span>HR Dashboard</span>
+            </div>
+            <p className="mt-1 text-sm text-slate-100 drop-shadow-[0_1px_6px_rgba(0,0,0,0.2)]">
+              Workforce, attendance, approvals, and compliance in one view.
+            </p>
+          </div>
+          <div className="relative w-full sm:w-96">
+            <input
+              type="text"
+              placeholder="Search employee / code / mobile / request ID"
+              className="w-full rounded-2xl border border-white/30 bg-white/15 px-4 py-3 text-sm text-white placeholder:text-slate-100 shadow-inner shadow-white/10 outline-none backdrop-blur transition focus:border-[#7d83ff] focus:ring-2 focus:ring-[#7d83ff]/40"
+            />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-200">
+              Enter
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-100 bg-white/90 p-4 shadow-lg shadow-slate-200">
+        <div className="grid gap-3 md:grid-cols-3">
+          {renderFilter("Location", data.filters.locations, filters.location, (value) => setFilters((f) => ({ ...f, location: value })))}
+          {renderFilter("Department", data.filters.departments, filters.department, (value) => setFilters((f) => ({ ...f, department: value })))}
+          {renderFilter("Date Range", data.filters.dateRanges, filters.dateRange, (value) => setFilters((f) => ({ ...f, dateRange: value })))}
+        </div>
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={() =>
+              setFilters({
+                location: data.filters.locations[0],
+                department: data.filters.departments[0],
+                dateRange: data.filters.dateRanges[0],
+              })
+            }
+            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            Reset Filters
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {data.kpis.primary.map((kpi, index) => (
+          <div
+            key={kpi.label}
+            className="group relative overflow-hidden rounded-3xl border border-slate-100 bg-white p-5 shadow-[0_15px_55px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_80px_rgba(15,23,42,0.14)]"
+          >
+            <div className="absolute inset-0 opacity-70 blur-2xl" style={{ background: `radial-gradient(circle at 30% 20%, rgba(34,211,238,0.25), transparent 40%), radial-gradient(circle at 70% 0%, rgba(16,185,129,0.25), transparent 35%)` }} />
+            <div className="relative flex items-start justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{kpi.label}</p>
+                <div className="mt-2 flex items-center gap-2 text-3xl font-semibold text-slate-900">
+                  <span>{kpi.value}</span>
+                  {kpi.trend && (
+                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-600">
+                      {kpi.trend}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-sm text-slate-600">{kpi.detail}</p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-700 shadow-inner shadow-white">
+                #{index + 1}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {data.kpis.secondary.map((kpi) => (
+          <div
+            key={kpi.label}
+            className="rounded-2xl border border-slate-100 bg-white px-5 py-4 shadow-md shadow-slate-100 transition hover:-translate-y-[2px] hover:shadow-lg"
+          >
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{kpi.label}</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-900">{kpi.value}</p>
+            <p className="text-xs font-semibold text-amber-600">{kpi.insight}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+        <Section title="HR Modules" variant="pastel">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {data.navCards.map((item) => (
+              <button
+                key={item}
+                onClick={() => triggerToast(`${item} (demo preview)`)}
+                className="group flex items-center justify-between rounded-2xl border border-indigo-50 bg-gradient-to-br from-white via-[#eef2ff] to-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm shadow-indigo-100 transition hover:-translate-y-[2px] hover:border-indigo-100 hover:shadow-lg"
+              >
+                <span>{item}</span>
+                <span className="rounded-xl bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-600 transition group-hover:bg-emerald-100">
+                  Open
+                </span>
+              </button>
+            ))}
+          </div>
+        </Section>
+        <Section title="Quick actions" variant="pastel">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {data.quickActions.map((action, idx) => {
+              const swatches = [
+                "#9BC3E7", // light blue
+                "#ACB6E3", // periwinkle
+                "#8BE1D5", // teal mint
+                "#C9E7EB", // soft aqua
+                "#F9E899", // pale yellow
+                "#F7C27A", // soft amber
+                "#F5A3A6", // coral pink
+              ];
+              const background = swatches[idx % swatches.length];
+              return (
+              <button
+                key={action}
+                onClick={() => triggerToast(`${action} (demo action)`)}
+                style={{ background }}
+                className="rounded-2xl px-4 py-3 text-sm font-semibold text-slate-900 shadow-md shadow-slate-200 transition hover:-translate-y-[2px] hover:shadow-xl hover:shadow-slate-300"
+              >
+                {action}
+              </button>
+            );
+            })}
+          </div>
+        </Section>
+      </div>
+
+      <Section
+        title="Attendance snapshot"
+        subtitle="Live department attendance"
+        variant="pastel"
+      >
+        <div className="flex flex-wrap gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
+          <Tag label={`Total: ${data.attendance.summary.total}`} />
+          <Tag label={`Present: ${data.attendance.summary.present}`} tone="emerald" />
+          <Tag label={`Absent: ${data.attendance.summary.absent}`} tone="rose" />
+          <Tag label={`On Leave: ${data.attendance.summary.leave}`} />
+          <Tag label={`On Field: ${data.attendance.summary.onField}`} tone="sky" />
+          <Tag label={`Unmarked: ${data.attendance.summary.unmarked}`} tone="amber" />
+        </div>
+        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100">
+          <table className="w-full text-left text-sm text-slate-700">
+            <thead className="bg-slate-50 text-xs uppercase tracking-[0.25em] text-slate-500">
+              <tr>
+                <th className="px-4 py-3">Department</th>
+                <th className="px-4 py-3">Total</th>
+                <th className="px-4 py-3">Present</th>
+                <th className="px-4 py-3">Absent</th>
+                <th className="px-4 py-3">On Leave</th>
+                <th className="px-4 py-3">On Field</th>
+                <th className="px-4 py-3">Unmarked</th>
+                <th className="px-4 py-3">Present %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.attendance.rows.map((row) => (
+                <tr key={row.department} className="border-t border-slate-100 bg-white transition hover:bg-slate-50">
+                  <td className="px-4 py-3 font-semibold text-slate-900">{row.department}</td>
+                  <td className="px-4 py-3">{row.total}</td>
+                  <td className="px-4 py-3 text-emerald-700">{row.present}</td>
+                  <td className="px-4 py-3 text-rose-600">{row.absent}</td>
+                  <td className="px-4 py-3">{row.leave}</td>
+                  <td className="px-4 py-3 text-sky-700">{row.onField}</td>
+                  <td className="px-4 py-3 text-amber-700">{row.unmarked}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-20 rounded-full bg-slate-100">
+                        <div className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600" style={{ inlineSize: `${Math.min(row.presentPercent, 100)}%` }} />
+                      </div>
+                      <span className="text-xs font-semibold text-slate-700">{row.presentPercent}%</span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Section title="Pending approvals" variant="pastel">
+          <div className="overflow-hidden rounded-2xl border border-slate-100">
+            <table className="w-full text-left text-sm text-slate-700">
+              <thead className="bg-slate-50 text-xs uppercase tracking-[0.25em] text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Req ID</th>
+                  <th className="px-4 py-3">Employee</th>
+                  <th className="px-4 py-3">Dept</th>
+                  <th className="px-4 py-3">Details</th>
+                  <th className="px-4 py-3">Requested</th>
+                  <th className="px-4 py-3">Ageing</th>
+                  <th className="px-4 py-3">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.approvals.map((row) => (
+                  <tr key={row.reqId} className="border-t border-slate-100 bg-white transition hover:bg-slate-50">
+                    <td className="px-4 py-3 font-semibold text-slate-900">{row.type}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-slate-500">{row.reqId}</td>
+                    <td className="px-4 py-3">{row.employee}</td>
+                    <td className="px-4 py-3">{row.dept}</td>
+                    <td className="px-4 py-3">{row.details}</td>
+                    <td className="px-4 py-3">{row.requestedOn}</td>
+                    <td className="px-4 py-3 text-amber-700">{row.ageing}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() =>
+                          triggerToast(`Reviewing ${row.type} ${row.reqId} (mock)`)
+                        }
+                        className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                      >
+                        Review
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+
+        <Section title="Joinings & exits" variant="pastel">
+          <div className="space-y-3">
+            {data.joiningsExits.map((row) => (
+              <div
+                key={`${row.type}-${row.title}-${row.date}`}
+                onClick={() =>
+                  triggerToast(`${row.type}: ${row.title} (${row.status})`)
+                }
+                className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-100 bg-gradient-to-r from-white via-slate-50 to-white px-4 py-3 shadow-sm transition hover:-translate-y-[1px] hover:shadow-md"
+              >
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{row.type}</p>
+                  <p className="text-base font-semibold text-slate-900">{row.title}</p>
+                  <p className="text-xs text-slate-500">
+                    {row.dept} • {row.location}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-slate-900">{row.date}</p>
+                  <p className="text-xs font-semibold text-emerald-600">{row.status}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Section title="Recruitment overview" variant="pastel">
+          <div className="space-y-3">
+            {data.recruitment.map((row) => (
+              <div
+                key={`${row.position}-${row.location}`}
+                onClick={() =>
+                  triggerToast(`Recruiting ${row.position} (${row.stage}, ${row.risk})`)
+                }
+                className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm transition hover:-translate-y-[1px] hover:shadow-md"
+              >
+                <div>
+                  <p className="text-base font-semibold text-slate-900">{row.position}</p>
+                  <p className="text-xs text-slate-500">
+                    {row.dept} • {row.location}
+                  </p>
+                  <p className="text-xs text-slate-500">Pipeline: {row.pipeline}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Required</p>
+                  <p className="text-sm font-semibold text-slate-900">{row.requiredBy}</p>
+                  <p className={`text-xs font-semibold ${row.risk.includes("Risk") ? "text-rose-600" : "text-emerald-600"}`}>
+                    {row.stage} • {row.risk}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Skills & certification alerts" variant="pastel">
+          <div className="space-y-3">
+            {data.skills.map((row) => (
+              <div
+                key={`${row.employee}-${row.certification}`}
+                onClick={() =>
+                  triggerToast(`Skill alert: ${row.employee} (${row.certification})`)
+                }
+                className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-100 bg-gradient-to-r from-white via-slate-50 to-white px-4 py-3 shadow-sm transition hover:-translate-y-[1px] hover:shadow-md"
+              >
+                <div>
+                  <p className="text-base font-semibold text-slate-900">{row.employee}</p>
+                  <p className="text-xs text-slate-500">
+                    {row.dept} • {row.certification}
+                  </p>
+                  <p className="text-xs text-slate-500">Issuer: {row.issuer}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Expiry</p>
+                  <p className="text-sm font-semibold text-slate-900">{row.expiry}</p>
+                  <p className={`text-xs font-semibold ${row.risk === "High" ? "text-rose-600" : "text-amber-600"}`}>
+                    {row.risk} risk
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Section title="Field force status" variant="pastel">
+          <div className="overflow-hidden rounded-2xl border border-slate-100">
+            <table className="w-full text-left text-sm text-slate-700">
+              <thead className="bg-slate-50 text-xs uppercase tracking-[0.25em] text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Technician</th>
+                  <th className="px-4 py-3">Region</th>
+                  <th className="px-4 py-3">Skill</th>
+                  <th className="px-4 py-3">First Job</th>
+                  <th className="px-4 py-3">Jobs</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.fieldStatus.map((row) => (
+                  <tr
+                    key={row.technician}
+                    onClick={() =>
+                      triggerToast(`Technician ${row.technician}: ${row.checkInStatus}`)
+                    }
+                    className="border-t border-slate-100 bg-white transition hover:bg-slate-50"
+                  >
+                    <td className="px-4 py-3 font-semibold text-slate-900">{row.technician}</td>
+                    <td className="px-4 py-3">{row.region}</td>
+                    <td className="px-4 py-3">{row.skill}</td>
+                    <td className="px-4 py-3">{row.firstJob}</td>
+                    <td className="px-4 py-3">{row.jobsToday}</td>
+                    <td className="px-4 py-3">
+                      <Tag label={row.checkInStatus} tone={row.checkInStatus.includes("Not") ? "rose" : "emerald"} />
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500">{row.lastUpdated}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+
+        <Section title="HR analytics" variant="pastel">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <MiniChart title="Headcount vs Time" data={data.analytics.headcount} colorClass="from-emerald-300 to-emerald-500" />
+            <MiniChart title="Attrition Trend" data={data.analytics.attrition} colorClass="from-amber-300 to-amber-500" />
+            <MiniChart title="Overtime by Department" data={data.analytics.overtimeByDept} colorClass="from-sky-300 to-sky-500" bar />
+            <MiniChart title="Leave Type Distribution" data={data.analytics.leaveDistribution} colorClass="from-indigo-300 to-indigo-500" bar />
+          </div>
+        </Section>
+      </div>
+
+      {isLoading && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-white/40 backdrop-blur-sm">
+          <div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-lg shadow-slate-200">
+            <span className="h-3 w-3 animate-pulse rounded-full bg-emerald-500" />
+            Syncing HR data...
+          </div>
+        </div>
+      )}
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-800 shadow-lg shadow-slate-300 backdrop-blur">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const renderFilter = (
+  label: string,
+  options: string[],
+  value: string,
+  onChange: (value: string) => void,
+) => (
+  <label className="block text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
+    {label}
+    <select
+      value={value}
+      onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+        onChange(event.target.value)
+      }
+      className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+    >
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  </label>
+);
+
+const Tag = ({ label, tone = "slate" }: { label: string; tone?: "slate" | "emerald" | "rose" | "sky" | "amber" }) => {
+  const toneMap: Record<string, string> = {
+    slate: "bg-slate-100 text-slate-700",
+    emerald: "bg-emerald-50 text-emerald-700",
+    rose: "bg-rose-50 text-rose-700",
+    sky: "bg-sky-50 text-sky-700",
+    amber: "bg-amber-50 text-amber-700",
+  };
+  return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${toneMap[tone] ?? toneMap.slate}`}>{label}</span>;
+};
+
+const MiniChart = ({
+  title,
+  data,
+  colorClass,
+  bar = false,
+}: {
+  title: string;
+  data: Array<{ label: string; value: number }>;
+  colorClass: string;
+  bar?: boolean;
+}) => {
+  const maxValue = Math.max(...data.map((item) => item.value), 1);
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{title}</p>
+      <div className="mt-3 flex items-end gap-2">
+        {data.map((item) => (
+          <div key={item.label} className="flex-1 text-center">
+            <div
+              className={`mx-auto w-full rounded-xl bg-gradient-to-t ${colorClass}`}
+              style={{
+                blockSize: `${Math.max((item.value / maxValue) * 90, 10)}px`,
+              }}
+            />
+            <p className="mt-1 text-xs font-semibold text-slate-600">{item.label}</p>
+            <p className="text-xs text-slate-500">{item.value}</p>
+          </div>
+        ))}
+      </div>
+      {!bar && <p className="mt-2 text-xs text-slate-500">Data synced from Supabase (fallback to sample if table missing).</p>}
+    </div>
+  );
+};
