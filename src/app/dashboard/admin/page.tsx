@@ -14,7 +14,23 @@ const mockStats = [
   { label: "Total Profit", value: "₹89.4 L", change: "+9.2%" },
 ];
 
+const statCardPalettes = [
+  { bg: "from-amber-200 via-orange-100 to-rose-200", bubble: "bg-amber-200/80" },
+  { bg: "from-blue-200 via-indigo-100 to-cyan-200", bubble: "bg-sky-200/80" },
+  { bg: "from-emerald-200 via-lime-100 to-green-200", bubble: "bg-emerald-200/80" },
+  { bg: "from-fuchsia-200 via-pink-100 to-purple-200", bubble: "bg-fuchsia-200/80" },
+];
+
 const weeklySales = [65, 82, 54, 98, 76, 104, 90];
+const weeklySalesDetails = [
+  { day: "Mon", sales: "₹12.4L", change: "+4.2%" },
+  { day: "Tue", sales: "₹15.8L", change: "+6.1%" },
+  { day: "Wed", sales: "₹10.6L", change: "-1.8%" },
+  { day: "Thu", sales: "₹18.9L", change: "+9.4%" },
+  { day: "Fri", sales: "₹14.1L", change: "+3.0%" },
+  { day: "Sat", sales: "₹20.3L", change: "+11.2%" },
+  { day: "Sun", sales: "₹17.6L", change: "+7.5%" },
+];
 
 const stockAlerts = [
   { product: "Sortex Machine", status: "Low Stock", qty: "7 units" },
@@ -157,42 +173,66 @@ export default function DashboardPage() {
       />
 
       <main className="flex-1 p-10">
-        <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-sm uppercase tracking-[0.4em] text-indigo-400">
-              Dashboard
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-              Operations Overview
-            </h1>
-          </div>
-          <div className="flex gap-3">
-            <button className="rounded-2xl border border-slate-200 px-5 py-2 text-sm font-medium text-slate-600 transition hover:bg-white">
-              Export
-            </button>
-            <button className="rounded-2xl bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-500">
-              Create Report
-            </button>
+        <header className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-r from-sky-300 via-rose-100 to-pink-300 p-6 shadow-xl shadow-rose-200/60">
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            <div className="text-slate-900">
+              <p className="text-xs uppercase tracking-[0.35em] text-slate-600">
+                Admin Control Center
+              </p>
+              <div className="mt-2 flex items-center gap-3">
+                <span className="rounded-full bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-800 shadow-sm">
+                  Welcome, Admin
+                </span>
+                <h1 className="text-3xl font-semibold leading-tight text-slate-900">
+                  Operations Dashboard
+                </h1>
+              </div>
+              <p className="mt-2 text-sm text-slate-700">
+                Monitor sales, teams, and inventory in one place. Quick actions on the right keep you ahead.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button className="rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-white">
+                Support
+              </button>
+              <button className="rounded-2xl bg-white px-5 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-slate-200/50 transition hover:bg-slate-100">
+                Export
+              </button>
+              <button className="rounded-2xl bg-white px-5 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-slate-200/60 transition hover:bg-slate-100">
+                Create Report
+              </button>
+            </div>
           </div>
         </header>
 
         <section className="grid gap-5 lg:grid-cols-4">
-          {mockStats.map((stat) => (
-            <div
-              key={stat.label}
-              className="rounded-3xl border border-slate-100 bg-white p-6 shadow-md shadow-slate-100"
-            >
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                {stat.label}
-              </p>
-              <p className="mt-3 text-3xl font-semibold text-slate-900">
-                {stat.value}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-emerald-500">
-                {stat.change}
-              </p>
-            </div>
-          ))}
+          {mockStats.map((stat, index) => {
+            const palette = statCardPalettes[index % statCardPalettes.length];
+            return (
+              <div
+                key={stat.label}
+                className="relative"
+              >
+                <div
+                  className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${palette.bg} p-6 shadow-md shadow-black/10`}
+                >
+                  <span
+                    className={`absolute -right-8 -top-8 h-28 w-28 rounded-full blur-2xl ${palette.bubble}`}
+                    aria-hidden
+                  />
+                  <p className="text-[11px] uppercase tracking-[0.28em] text-slate-600">
+                    {stat.label}
+                  </p>
+                  <p className="mt-3 text-3xl font-semibold text-slate-900">
+                    {stat.value}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-emerald-600">
+                    {stat.change}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </section>
 
         <section className="mt-8 grid gap-6 lg:grid-cols-3">
@@ -200,7 +240,7 @@ export default function DashboardPage() {
             <p className="text-sm font-medium text-slate-500">
               Weekly Sales Performance
             </p>
-            <WeeklySalesBar data={weeklySales} />
+            <WeeklySalesBar data={weeklySales} details={weeklySalesDetails} />
           </div>
 
           <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-md shadow-slate-100">
@@ -366,21 +406,53 @@ export default function DashboardPage() {
   );
 }
 
-function WeeklySalesBar({ data }: { data: number[] }) {
+function WeeklySalesBar({
+  data,
+  details,
+}: {
+  data: number[];
+  details: typeof weeklySalesDetails;
+}) {
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+
   return (
-    <div>
-      <div className="mt-4 flex items-end gap-3">
+    <div className="mt-4">
+      <div className="relative flex items-end gap-3">
         {data.map((height, index) => (
           <div
             key={index}
-            className="group flex-1 rounded-2xl bg-gradient-to-t from-indigo-200 to-indigo-500 transition duration-200 hover:from-rose-200 hover:to-rose-500 hover:shadow-lg"
+            className="group relative flex-1 rounded-2xl bg-gradient-to-t from-indigo-200 to-indigo-500 transition duration-200 hover:from-rose-200 hover:to-rose-500 hover:shadow-lg"
             style={{ height: `${height + 80}px` }}
-          />
+            onMouseEnter={() => setHoverIndex(index)}
+            onMouseLeave={() => setHoverIndex(null)}
+          >
+            {hoverIndex === index && (
+              <div
+                className="absolute -top-20 left-1/2 z-10 w-40 -translate-x-1/2 rounded-2xl border border-slate-100 bg-white px-3 py-2 text-xs shadow-lg shadow-slate-200"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  {details[index].day}
+                </p>
+                <p className="text-base font-semibold text-slate-900">
+                  {details[index].sales}
+                </p>
+                <p
+                  className={`text-[11px] font-semibold ${
+                    details[index].change.startsWith("-")
+                      ? "text-rose-500"
+                      : "text-emerald-600"
+                  }`}
+                >
+                  {details[index].change} vs prev. day
+                </p>
+              </div>
+            )}
+          </div>
         ))}
       </div>
       <div className="mt-4 flex justify-between text-xs font-semibold text-slate-500">
-        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-          <span key={day}>{day}</span>
+        {details.map((item) => (
+          <span key={item.day}>{item.day}</span>
         ))}
       </div>
     </div>

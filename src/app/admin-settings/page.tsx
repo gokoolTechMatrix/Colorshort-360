@@ -82,10 +82,15 @@ export default function AdminSettingsPage() {
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [savingMemberId, setSavingMemberId] = useState<string | null>(null);
-  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [teamToast, setTeamToast] = useState<string | null>(null);
   const settingsDirtyRef = useRef(false);
+  const persistTeamMember = (index: number) => {
+    const member = teamMembers[index];
+    if (!member) return;
+    void upsertTeamMember(member);
+  };
   const handleLogout = async () => {
     if (isSigningOut) return;
     setIsSigningOut(true);
@@ -95,6 +100,12 @@ export default function AdminSettingsPage() {
       router.push("/");
     }
   };
+
+  useEffect(() => {
+    if (!teamToast) return;
+    const timer = setTimeout(() => setTeamToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [teamToast]);
 
   const fetchCompanyData = async () => {
     setIsLoadingSettings(true);
@@ -276,21 +287,24 @@ export default function AdminSettingsPage() {
     setIsSavingTeamAll(true);
     setStatus(null);
     try {
-      for (const member of teamMembers) {
-        const response = await fetch("/api/company-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ teamMember: member }),
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload?.message ?? "Unable to save team member.");
-        }
-      }
+      await Promise.all(
+        teamMembers.map(async (member) => {
+          const response = await fetch("/api/company-settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ teamMember: member }),
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload?.message ?? "Unable to save team member.");
+          }
+        }),
+      );
       setStatus({
         type: "success",
         message: "Team saved.",
       });
+      setTeamToast("Team saved and synced");
       setJustSavedTeam(true);
       setIsEditingTeam(false);
       await fetchCompanyData();
@@ -303,36 +317,6 @@ export default function AdminSettingsPage() {
       });
     } finally {
       setIsSavingTeamAll(false);
-    }
-  };
-
-  const deleteTeamMember = async (memberId: string | undefined) => {
-    if (!memberId) {
-      setTeamMembers((prev) => prev.filter((member) => member.id));
-      return;
-    }
-    setStatus(null);
-    setDeletingMemberId(memberId);
-    try {
-      const response = await fetch("/api/company-settings", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: memberId }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.message ?? "Unable to delete member.");
-      }
-      await fetchCompanyData();
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unable to delete member.";
-      setStatus({
-        type: "error",
-        message,
-      });
-    } finally {
-      setDeletingMemberId(null);
     }
   };
 
@@ -782,15 +766,18 @@ export default function AdminSettingsPage() {
           </div>
         </section>
 
-        <section className="space-y-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-md shadow-slate-100">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-indigo-400">
+        <section className="space-y-5 rounded-3xl border border-indigo-100/70 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-6 shadow-lg shadow-indigo-100">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-indigo-500">
                 Team management
               </p>
-              <h2 className="text-lg font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-slate-900">
                 Employees & badges
               </h2>
+              <p className="text-sm text-slate-600">
+                Edit details inline — changes auto-save on blur. Use actions to refresh or sync all.
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <button
@@ -798,7 +785,7 @@ export default function AdminSettingsPage() {
                   setIsRefreshingTeam(true);
                   void fetchCompanyData().finally(() => setIsRefreshingTeam(false));
                 }}
-                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
+                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur transition hover:bg-white"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -815,8 +802,8 @@ export default function AdminSettingsPage() {
               </button>
               <button
                 onClick={saveAllTeamMembers}
-                disabled={isSavingTeamAll || savingMemberId !== null || deletingMemberId !== null || isRefreshingTeam}
-                className={`rounded-full px-5 py-3 text-sm font-semibold shadow-sm transition ${
+                disabled={isSavingTeamAll || savingMemberId !== null || isRefreshingTeam}
+                className={`rounded-full px-5 py-3 text-sm font-semibold shadow-[0_12px_30px_rgba(79,70,229,0.18)] transition ${
                   isEditingTeam
                     ? "bg-indigo-600 text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
                     : "bg-emerald-50 text-emerald-700"
@@ -839,7 +826,7 @@ export default function AdminSettingsPage() {
                         >
                           <path d="M20 6 9 17l-5-5" />
                         </svg>
-                        Saved
+                        Synced
                       </span>
                     )}
               </button>
@@ -849,7 +836,7 @@ export default function AdminSettingsPage() {
                     setIsEditingTeam(true);
                     setJustSavedTeam(false);
                   }}
-                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50"
+                  className="rounded-full border border-indigo-200 bg-white/80 px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm backdrop-blur transition hover:bg-white"
                 >
                   Edit
                 </button>
@@ -857,113 +844,88 @@ export default function AdminSettingsPage() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-slate-100">
-            <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-1 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <span>Name</span>
-              <span>Employee ID</span>
-              <span>Role</span>
-              <span>Actions</span>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
+              <span>Roster</span>
+              <span className="text-[11px] text-indigo-500">Auto-save on blur</span>
             </div>
-            <div className="divide-y divide-slate-100 bg-white">
+            <div className="grid gap-3 md:grid-cols-2">
               {teamMembers.length === 0 && (
-                <div className="px-4 py-4 text-sm text-slate-500">
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-4 py-6 text-sm text-slate-500 shadow-inner">
                   No team members yet.
                 </div>
               )}
               {teamMembers.map((member, index) => (
                 <div
                   key={member.id ?? `temp-${index}`}
-                  className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-3 px-4 py-4 text-sm text-slate-700"
+                  className="group relative rounded-2xl border border-white/60 bg-white/80 px-4 py-4 shadow-md shadow-indigo-100 backdrop-blur"
                 >
-                  <input
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
-                    disabled={!isEditingTeam}
-                    value={member.name}
-                    onChange={(event) =>
-                      setTeamMembers((prev) =>
-                        prev.map((row, idx) =>
-                          idx === index
-                            ? { ...row, name: event.target.value }
-                            : row,
-                        ),
-                      )
-                    }
-                    placeholder="Full name"
-                  />
-                  <input
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
-                    disabled={!isEditingTeam}
-                    value={member.employee_id}
-                    onChange={(event) =>
-                      setTeamMembers((prev) =>
-                        prev.map((row, idx) =>
-                          idx === index
-                            ? { ...row, employee_id: event.target.value }
-                            : row,
-                        ),
-                      )
-                    }
-                    placeholder="ID"
-                  />
-                  <input
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
-                    disabled={!isEditingTeam}
-                    value={member.role}
-                    onChange={(event) =>
-                      setTeamMembers((prev) =>
-                        prev.map((row, idx) =>
-                          idx === index
-                            ? { ...row, role: event.target.value }
-                            : row,
-                        ),
-                      )
-                    }
-                    placeholder="Role"
-                  />
-                  <div className="flex items-center gap-2">
-                    {[
-                      { key: "gold" as TrustFlag, icon: "🥇", classes: "border-amber-500 bg-amber-50 text-amber-700" },
-                      { key: "silver" as TrustFlag, icon: "🥈", classes: "border-slate-400 bg-slate-50 text-slate-600" },
-                      { key: "bronze" as TrustFlag, icon: "🥉", classes: "border-orange-500 bg-orange-50 text-orange-700" },
-                    ].map((flag) => (
-                      <button
-                        key={flag.key}
-                        onClick={() =>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-[0.25em] text-indigo-500">
+                      Member
+                    </span>
+                    <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-700">
+                      {member.role || "Set role"}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid gap-3">
+                    <label className="text-xs font-semibold text-slate-600">
+                      Name
+                      <input
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                        disabled={!isEditingTeam}
+                        value={member.name}
+                        onChange={(event) =>
                           setTeamMembers((prev) =>
                             prev.map((row, idx) =>
-                              idx === index ? { ...row, trust_flag: flag.key } : row,
+                              idx === index
+                                ? { ...row, name: event.target.value }
+                                : row,
                             ),
                           )
                         }
-                        className={`h-11 w-11 rounded-full border text-lg transition ${
-                          member.trust_flag === flag.key
-                            ? flag.classes
-                            : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
-                        }`}
-                        aria-label={`Set badge ${flag.key}`}
-                        type="button"
-                      >
-                        {flag.icon}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => void upsertTeamMember(member)}
-                      disabled={savingMemberId !== null}
-                      className="rounded-full bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                      {savingMemberId === (member.id ?? "new")
-                        ? "Saving..."
-                        : "Save"}
-                    </button>
-                    <button
-                      onClick={() => void deleteTeamMember(member.id)}
-                      disabled={deletingMemberId === member.id}
-                      className="rounded-full border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                      {deletingMemberId === member.id ? "Removing..." : "Delete"}
-                    </button>
+                        onBlur={() => persistTeamMember(index)}
+                        placeholder="Full name"
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-600">
+                      Employee ID
+                      <input
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                        disabled={!isEditingTeam}
+                        value={member.employee_id}
+                        onChange={(event) =>
+                          setTeamMembers((prev) =>
+                            prev.map((row, idx) =>
+                              idx === index
+                                ? { ...row, employee_id: event.target.value }
+                                : row,
+                            ),
+                          )
+                        }
+                        onBlur={() => persistTeamMember(index)}
+                        placeholder="ID"
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-600">
+                      Role
+                      <input
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                        disabled={!isEditingTeam}
+                        value={member.role}
+                        onChange={(event) =>
+                          setTeamMembers((prev) =>
+                            prev.map((row, idx) =>
+                              idx === index
+                                ? { ...row, role: event.target.value }
+                                : row,
+                            ),
+                          )
+                        }
+                        onBlur={() => persistTeamMember(index)}
+                        placeholder="Role"
+                      />
+                    </label>
                   </div>
                 </div>
               ))}
@@ -1104,7 +1066,30 @@ export default function AdminSettingsPage() {
           </form>
         </section>
       </div>
+      {teamToast && <TeamToast message={teamToast} />}
       </main>
+    </div>
+  );
+}
+
+function TeamToast({ message }: { message: string }) {
+  return (
+    <div className="fixed bottom-6 right-6 z-50 animate-[fadeIn_180ms_ease]">
+      <div className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-2xl shadow-slate-900/40">
+        {message}
+      </div>
+      <style jsx>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }

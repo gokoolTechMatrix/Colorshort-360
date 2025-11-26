@@ -64,17 +64,18 @@ export async function GET() {
         : "gold";
     };
 
-    const trustMap = new Map(
-      (teamRows ?? []).map((row) => [row.id, normalizeTrust(row.trust_flag)]),
-    );
+    const teamMap = new Map((teamRows ?? []).map((row) => [row.id, row]));
 
     const combined =
       profiles?.map((profile) => ({
         id: profile.id,
-        name: profile.full_name ?? "",
-        employee_id: "",
-        role: profile.role ?? "",
-        trust_flag: trustMap.get(profile.id) ?? ("gold" as TrustFlag),
+        name: teamMap.get(profile.id)?.name ?? profile.full_name ?? "",
+        employee_id: teamMap.get(profile.id)?.employee_id ?? "",
+        role:
+          teamMap.get(profile.id)?.role ??
+          profile.role ??
+          "",
+        trust_flag: normalizeTrust(teamMap.get(profile.id)?.trust_flag),
       })) ?? [];
 
     // include any existing manual rows that don't match a profile id
@@ -180,14 +181,24 @@ export async function POST(request: Request) {
       }
     }
 
-    const upsertPayload = {
-      ...(teamMember.id ? { id: teamMember.id } : {}),
+    const upsertId = teamMember.id?.trim();
+    const upsertPayload: {
+      id?: string;
+      name: string;
+      employee_id: string;
+      role: string;
+      trust_flag: TrustFlag;
+      updated_at: string;
+    } = {
       name: teamMember.name ?? "",
       employee_id: teamMember.employee_id ?? "",
       role: teamMember.role ?? "",
       trust_flag: trustFlag,
       updated_at: new Date().toISOString(),
     };
+    if (upsertId && upsertId.length > 0) {
+      upsertPayload.id = upsertId;
+    }
 
     const { error } = await supabase
       .from("company_team_members")
