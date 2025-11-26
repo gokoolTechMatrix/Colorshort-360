@@ -72,6 +72,18 @@ export default function RoleDashboardPage() {
   const [companyLogo, setCompanyLogo] = useState("/image.png");
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const leadNavRoles = new Set([
+    "super_admin",
+    "admin",
+    "hr",
+    "sales-manager",
+    "sales-co-ordinator",
+    "sales-executive",
+    "service-manager",
+    "service-co-ordinator",
+    "service-executive",
+    "service-engineer",
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -207,6 +219,7 @@ export default function RoleDashboardPage() {
         onLogout={handleLogout}
         isSigningOut={isSigningOut}
         activeHref="/dashboard"
+        showLeadManagement={leadNavRoles.has(roleSlug ?? "")}
       />
 
       <main className="flex-1 px-6 py-10">

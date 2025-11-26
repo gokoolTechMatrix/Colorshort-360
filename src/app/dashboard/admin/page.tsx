@@ -170,6 +170,7 @@ export default function DashboardPage() {
         activeHref="/dashboard"
         showSettings={isSuperAdmin}
         showUserCreation={isSuperAdmin}
+        showLeadManagement
       />
 
       <main className="flex-1 p-10">

@@ -93,6 +93,25 @@ const baseLinks: SidebarLink[] = [
     ),
   },
   {
+    label: "Lead Management",
+    href: "/lead-management",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-5 w-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      >
+        <path d="M5 5h9l5 5v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+        <path d="M14 5v5h5" />
+        <path d="M9 14h6" />
+        <path d="M9 18h3" />
+      </svg>
+    ),
+  },
+  {
     label: "Reports & Exports",
     href: "#",
     icon: (
@@ -137,6 +156,7 @@ export type DashboardSidebarProps = {
   activeHref?: string;
   showSettings?: boolean;
   showUserCreation?: boolean;
+  showLeadManagement?: boolean;
 };
 
 export function DashboardSidebar({
@@ -148,12 +168,14 @@ export function DashboardSidebar({
   activeHref = "/dashboard",
   showSettings = false,
   showUserCreation = false,
+  showLeadManagement = true,
 }: DashboardSidebarProps) {
   const router = useRouter();
 
   const links = baseLinks.filter((link) => {
     if (link.label === "Settings") return showSettings;
     if (link.label === "User Creation") return showUserCreation;
+    if (link.label === "Lead Management") return showLeadManagement;
     return true;
   });
 
