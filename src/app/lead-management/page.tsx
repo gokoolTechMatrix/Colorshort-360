@@ -60,6 +60,26 @@ const roleCaps: Record<string, RoleCaps> = {
     readOnly: false,
     viewFilter: () => true,
   },
+  finance: {
+    canAssign: false,
+    canApproveQuotation: false,
+    canRequestQuotation: false,
+    canClose: false,
+    canChangeStage: false,
+    canCreate: false,
+    readOnly: true,
+    viewFilter: (lead) => lead.stage === "Won" || !!lead.special,
+  },
+  accountant: {
+    canAssign: false,
+    canApproveQuotation: false,
+    canRequestQuotation: false,
+    canClose: false,
+    canChangeStage: false,
+    canCreate: false,
+    readOnly: true,
+    viewFilter: (lead) => lead.stage === "Won" || !!lead.special,
+  },
   admin: {
     canAssign: true,
     canApproveQuotation: true,
@@ -282,11 +302,28 @@ const mockLeads: Lead[] = [
     state: "Punjab",
     product: "Pulse Sorter",
     source: "Portal",
-    stage: "Lost",
+    stage: "Won",
     temperature: "Cold",
-    value: "₹0.0",
-    nextAction: "Archive lead",
-    nextAt: "—",
+    value: "₹21.0L",
+    nextAction: "Invoice & payment plan",
+    nextAt: "2025-11-30 12:00",
+    special: true,
+  },
+  {
+    id: "L-1222",
+    customer: "Finance Lead",
+    company: "Growth Mills",
+    owner: "Accountant",
+    role: "finance",
+    zone: "South",
+    state: "Kerala",
+    product: "Combo Sorter",
+    source: "Order",
+    stage: "Won",
+    temperature: "Warm",
+    value: "₹32.5L",
+    nextAction: "Generate invoice & push to Tally",
+    nextAt: "2025-11-28 14:00",
   },
 ];
 
@@ -316,6 +353,22 @@ export default function LeadManagementPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [isRefreshingLeads, setIsRefreshingLeads] = useState(false);
+  const isFinanceRole =
+    profileRole === "finance" ||
+    profileRole === "accountant" ||
+    profileRole === "super_admin";
+  const [payments, setPayments] = useState<
+    Array<{ id: string; leadId: string; amount: string; mode: string; date: string }>
+  >([
+    { id: "P-1001", leadId: "L-1222", amount: "₹12.5L", mode: "NEFT", date: "2025-11-25" },
+    { id: "P-1002", leadId: "L-1201", amount: "₹8.5L", mode: "UPI", date: "2025-11-24" },
+  ]);
+  const [credits, setCredits] = useState<
+    Array<{ id: string; leadId: string; amount: string; date: string }>
+  >([{ id: "CN-201", leadId: "L-1222", amount: "₹65,000", date: "2025-11-26" }]);
+  const [debits, setDebits] = useState<
+    Array<{ id: string; leadId: string; amount: string; date: string }>
+  >([{ id: "DN-310", leadId: "L-1222", amount: "₹24,000", date: "2025-11-26" }]);
 
   useEffect(() => {
     let active = true;
@@ -442,6 +495,41 @@ export default function LeadManagementPage() {
     setToast(`Lead ${leadId} assigned to ${owner}`);
   };
 
+  const handleFinanceAction = (leadId: string, action: string) => {
+    if (!isFinanceRole) return;
+    setToast(`${action} for ${leadId} ready`);
+  };
+
+  const addPayment = () => {
+    if (!isFinanceRole) return;
+    const nextId = `P-${Math.floor(Math.random() * 9000 + 1000)}`;
+    setPayments((prev) => [
+      { id: nextId, leadId: "L-1222", amount: "₹1.2L", mode: "Bank Transfer", date: new Date().toISOString().slice(0, 10) },
+      ...prev,
+    ]);
+    setToast(`Payment recorded (${nextId})`);
+  };
+
+  const addCreditNote = () => {
+    if (!isFinanceRole) return;
+    const nextId = `CN-${Math.floor(Math.random() * 900 + 100)}`;
+    setCredits((prev) => [
+      { id: nextId, leadId: "L-1222", amount: "₹35,000", date: new Date().toISOString().slice(0, 10) },
+      ...prev,
+    ]);
+    setToast(`Credit Note created (${nextId})`);
+  };
+
+  const addDebitNote = () => {
+    if (!isFinanceRole) return;
+    const nextId = `DN-${Math.floor(Math.random() * 900 + 100)}`;
+    setDebits((prev) => [
+      { id: nextId, leadId: "L-1222", amount: "₹18,000", date: new Date().toISOString().slice(0, 10) },
+      ...prev,
+    ]);
+    setToast(`Debit Note created (${nextId})`);
+  };
+
   const pipelineColumns = stageOrder.map((stage) => ({
     stage,
     items: filteredLeads.filter((lead) => lead.stage === stage),
@@ -539,6 +627,130 @@ export default function LeadManagementPage() {
             </div>
           ))}
         </section>
+
+        {isFinanceRole && (
+          <section className="mt-6 rounded-3xl border border-slate-100 bg-white/90 p-4 shadow-sm backdrop-blur">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
+                  Finance cockpit
+                </p>
+                <p className="text-sm text-slate-600">
+                  Payments, credit notes, and debit notes for won/order-linked leads.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                <button
+                  onClick={addPayment}
+                  className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
+                >
+                  + Record payment
+                </button>
+                <button
+                  onClick={addCreditNote}
+                  className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
+                >
+                  + Credit note
+                </button>
+                <button
+                  onClick={addDebitNote}
+                  className="rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-4 py-2 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
+                >
+                  + Debit note
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-3">
+              <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Payments
+                  </p>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                    {payments.length}
+                  </span>
+                </div>
+                <div className="space-y-2 text-sm text-slate-700">
+                  {payments.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-[0_4px_12px_rgba(0,0,0,0.03)]"
+                    >
+                      <div>
+                        <p className="font-semibold text-slate-900">{p.amount}</p>
+                        <p className="text-xs text-slate-500">
+                          {p.mode} · {p.date} · {p.leadId}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-600">
+                        Receipt
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Credit notes
+                  </p>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                    {credits.length}
+                  </span>
+                </div>
+                <div className="space-y-2 text-sm text-slate-700">
+                  {credits.map((c) => (
+                    <div
+                      key={c.id}
+                      className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-[0_4px_12px_rgba(0,0,0,0.03)]"
+                    >
+                      <div>
+                        <p className="font-semibold text-slate-900">{c.amount}</p>
+                        <p className="text-xs text-slate-500">
+                          {c.date} · {c.leadId}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-600">
+                        Credit
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Debit notes
+                  </p>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                    {debits.length}
+                  </span>
+                </div>
+                <div className="space-y-2 text-sm text-slate-700">
+                  {debits.map((d) => (
+                    <div
+                      key={d.id}
+                      className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-[0_4px_12px_rgba(0,0,0,0.03)]"
+                    >
+                      <div>
+                        <p className="font-semibold text-slate-900">{d.amount}</p>
+                        <p className="text-xs text-slate-500">
+                          {d.date} · {d.leadId}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-600">
+                        Debit
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-100 bg-white/80 p-4 shadow-sm backdrop-blur">
           <div className="flex flex-wrap items-center gap-2">
@@ -698,6 +910,40 @@ export default function LeadManagementPage() {
                               </button>
                             </>
                           )}
+                          {isFinanceRole && lead.stage === "Won" && (
+                            <>
+                              <button
+                                className="rounded-full bg-gradient-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:brightness-105"
+                                onClick={() => handleFinanceAction(lead.id, "Invoice")}
+                              >
+                                Invoice
+                              </button>
+                              <button
+                                className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
+                                onClick={() => handleFinanceAction(lead.id, "Payment receipt")}
+                              >
+                                Record Payment
+                              </button>
+                              <button
+                                className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
+                                onClick={() => handleFinanceAction(lead.id, "Credit note")}
+                              >
+                                Credit Note
+                              </button>
+                              <button
+                                className="rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
+                                onClick={() => handleFinanceAction(lead.id, "Debit note")}
+                              >
+                                Debit Note
+                              </button>
+                              <button
+                                className="rounded-full border border-cyan-200 bg-white px-3 py-1.5 text-cyan-700 shadow-sm transition hover:bg-cyan-50"
+                                onClick={() => handleFinanceAction(lead.id, "Ledger view")}
+                              >
+                                Ledger
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -770,6 +1016,40 @@ export default function LeadManagementPage() {
                             >
                               Request Quote
                             </button>
+                          )}
+                          {isFinanceRole && lead.stage === "Won" && (
+                            <>
+                              <button
+                                className="rounded-full bg-gradient-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:brightness-105"
+                                onClick={() => handleFinanceAction(lead.id, "Invoice")}
+                              >
+                                Invoice
+                              </button>
+                              <button
+                                className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
+                                onClick={() => handleFinanceAction(lead.id, "Payment receipt")}
+                              >
+                                Record Payment
+                              </button>
+                              <button
+                                className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
+                                onClick={() => handleFinanceAction(lead.id, "Credit note")}
+                              >
+                                Credit Note
+                              </button>
+                              <button
+                                className="rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
+                                onClick={() => handleFinanceAction(lead.id, "Debit note")}
+                              >
+                                Debit Note
+                              </button>
+                              <button
+                                className="rounded-full border border-cyan-200 bg-white px-3 py-1.5 text-cyan-700 shadow-sm transition hover:bg-cyan-50"
+                                onClick={() => handleFinanceAction(lead.id, "Ledger view")}
+                              >
+                                Ledger
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>

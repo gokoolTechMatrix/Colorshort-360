@@ -76,6 +76,8 @@ export default function RoleDashboardPage() {
     "super_admin",
     "admin",
     "hr",
+    "finance",
+    "accountant",
     "sales-manager",
     "sales-co-ordinator",
     "sales-executive",
