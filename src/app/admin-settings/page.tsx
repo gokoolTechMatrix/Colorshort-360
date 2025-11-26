@@ -71,7 +71,7 @@ export default function AdminSettingsPage() {
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [isEditingSettings, setIsEditingSettings] = useState(true);
   const [justSaved, setJustSaved] = useState(false);
-  const [isEditingTeam, setIsEditingTeam] = useState(true);
+  const [isEditingTeam] = useState(true);
   const [justSavedTeam, setJustSavedTeam] = useState(false);
   const [isSavingTeamAll, setIsSavingTeamAll] = useState(false);
   const [isRefreshingTeam, setIsRefreshingTeam] = useState(false);
@@ -84,7 +84,7 @@ export default function AdminSettingsPage() {
   const [savingMemberId, setSavingMemberId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [teamToast, setTeamToast] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const settingsDirtyRef = useRef(false);
   const persistTeamMember = (index: number) => {
     const member = teamMembers[index];
@@ -102,10 +102,10 @@ export default function AdminSettingsPage() {
   };
 
   useEffect(() => {
-    if (!teamToast) return;
-    const timer = setTimeout(() => setTeamToast(null), 3000);
+    if (!toastMessage) return;
+    const timer = setTimeout(() => setToastMessage(null), 3000);
     return () => clearTimeout(timer);
-  }, [teamToast]);
+  }, [toastMessage]);
 
   const fetchCompanyData = async () => {
     setIsLoadingSettings(true);
@@ -304,9 +304,8 @@ export default function AdminSettingsPage() {
         type: "success",
         message: "Team saved.",
       });
-      setTeamToast("Team saved and synced");
+      setToastMessage("Team saved and synced");
       setJustSavedTeam(true);
-      setIsEditingTeam(false);
       await fetchCompanyData();
     } catch (error) {
       const message =
@@ -355,6 +354,7 @@ export default function AdminSettingsPage() {
         type: "success",
         message: "Password updated. Sign out for changes to take effect.",
       });
+      setToastMessage("Password updated. Sign out to use the new password.");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unable to reset password.";
@@ -811,36 +811,8 @@ export default function AdminSettingsPage() {
               >
                 {isSavingTeamAll
                   ? "Saving..."
-                  : isEditingTeam
-                    ? "Save team"
-                    : (
-                      <span className="inline-flex items-center gap-2">
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="h-4 w-4 text-emerald-600"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M20 6 9 17l-5-5" />
-                        </svg>
-                        Synced
-                      </span>
-                    )}
+                  : "Save team"}
               </button>
-              {!isEditingTeam && (
-                <button
-                  onClick={() => {
-                    setIsEditingTeam(true);
-                    setJustSavedTeam(false);
-                  }}
-                  className="rounded-full border border-indigo-200 bg-white/80 px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm backdrop-blur transition hover:bg-white"
-                >
-                  Edit
-                </button>
-              )}
             </div>
           </div>
 
@@ -873,7 +845,7 @@ export default function AdminSettingsPage() {
                       Name
                       <input
                         className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
-                        disabled={!isEditingTeam}
+                        disabled={isSavingTeamAll || isRefreshingTeam}
                         value={member.name}
                         onChange={(event) =>
                           setTeamMembers((prev) =>
@@ -892,7 +864,7 @@ export default function AdminSettingsPage() {
                       Employee ID
                       <input
                         className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
-                        disabled={!isEditingTeam}
+                        disabled={isSavingTeamAll || isRefreshingTeam}
                         value={member.employee_id}
                         onChange={(event) =>
                           setTeamMembers((prev) =>
@@ -911,7 +883,7 @@ export default function AdminSettingsPage() {
                       Role
                       <input
                         className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
-                        disabled={!isEditingTeam}
+                        disabled={isSavingTeamAll || isRefreshingTeam}
                         value={member.role}
                         onChange={(event) =>
                           setTeamMembers((prev) =>
@@ -1066,27 +1038,47 @@ export default function AdminSettingsPage() {
           </form>
         </section>
       </div>
-      {teamToast && <TeamToast message={teamToast} />}
+      {toastMessage && <Toast message={toastMessage} />}
       </main>
     </div>
   );
 }
 
-function TeamToast({ message }: { message: string }) {
+function Toast({ message }: { message: string }) {
   return (
-    <div className="fixed bottom-6 right-6 z-50 animate-[fadeIn_180ms_ease]">
-      <div className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-2xl shadow-slate-900/40">
-        {message}
+    <div className="pointer-events-none fixed inset-0 z-50 flex items-start justify-center">
+      <div
+        className="mt-10 rounded-3xl bg-gradient-to-r from-cyan-200 via-cyan-300 to-sky-300 px-6 py-4 text-sm font-semibold text-slate-900 shadow-[0_15px_40px_rgba(14,165,233,0.35)] backdrop-blur"
+        style={{
+          animation: "toastPop 220ms ease, toastFade 320ms ease 2.7s forwards",
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-white/70 text-base font-bold text-indigo-600 shadow-inner shadow-indigo-100">
+            ✓
+          </span>
+          <p className="text-base font-semibold leading-snug">{message}</p>
+        </div>
       </div>
       <style jsx>{`
-        @keyframes fadeIn {
+        @keyframes toastPop {
           from {
             opacity: 0;
-            transform: translateY(8px);
+            transform: translateY(-10px) scale(0.97);
           }
           to {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
+          }
+        }
+        @keyframes toastFade {
+          from {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          to {
+            opacity: 0;
+            transform: translateY(-6px) scale(0.99);
           }
         }
       `}</style>

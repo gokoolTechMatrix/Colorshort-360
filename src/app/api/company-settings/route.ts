@@ -155,11 +155,17 @@ export async function POST(request: Request) {
     }
 
     const supabase = getServiceRoleClient();
-    const trustFlag = TRUST_FLAGS.includes(
-      (teamMember.trust_flag ?? "gold") as TrustFlag,
-    )
-      ? (teamMember.trust_flag as TrustFlag)
+    const trustFlagInput = (teamMember.trust_flag ?? "gold") as TrustFlag;
+    const trustFlag = TRUST_FLAGS.includes(trustFlagInput)
+      ? trustFlagInput
       : "gold";
+    // Align with legacy DB enum (green/yellow/red) if needed.
+    const trustFlagDb =
+      trustFlag === "gold"
+        ? "green"
+        : trustFlag === "silver"
+          ? "yellow"
+          : "red";
 
     // Reflect edits back to profiles when an id is provided
     if (teamMember.id && (teamMember.name || teamMember.role)) {
@@ -187,13 +193,13 @@ export async function POST(request: Request) {
       name: string;
       employee_id: string;
       role: string;
-      trust_flag: TrustFlag;
+      trust_flag: string;
       updated_at: string;
     } = {
       name: teamMember.name ?? "",
       employee_id: teamMember.employee_id ?? "",
       role: teamMember.role ?? "",
-      trust_flag: trustFlag,
+      trust_flag: trustFlagDb,
       updated_at: new Date().toISOString(),
     };
     if (upsertId && upsertId.length > 0) {

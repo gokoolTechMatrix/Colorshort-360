@@ -17,15 +17,21 @@ export async function POST(request: Request) {
     }
 
     const supabase = getServiceRoleClient();
-    const { data: userRow, error: lookupError } = await supabase
-      .from("auth.users")
-      .select("id, raw_user_meta_data")
-      .eq("email", SUPER_ADMIN_EMAIL)
-      .maybeSingle();
 
-    if (lookupError) {
-      throw lookupError;
+    // Supabase JS v2 does not expose getUserByEmail; use listUsers and match locally.
+    const { data: listData, error: listError } =
+      await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
+      });
+    if (listError) {
+      throw listError;
     }
+
+    const userRow =
+      listData?.users?.find(
+        (user) => user.email?.toLowerCase() === SUPER_ADMIN_EMAIL,
+      ) ?? null;
 
     if (!userRow) {
       const { error: createError } = await supabase.auth.admin.createUser({
@@ -48,7 +54,7 @@ export async function POST(request: Request) {
       {
         password,
         user_metadata: {
-          ...(userRow.raw_user_meta_data ?? {}),
+          ...(userRow.user_metadata ?? {}),
           role: "super_admin",
         },
       },
