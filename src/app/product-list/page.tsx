@@ -355,6 +355,9 @@ export default function ProductListPage() {
 
   });
 
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
   const [editId, setEditId] = useState<string | null>(null);
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -399,6 +402,119 @@ export default function ProductListPage() {
     }
 
   }, []);
+
+
+
+  const handleExportPdf = async () => {
+    setExportError(null);
+    setExporting(true);
+
+    const timestamp = new Date();
+    const fileStamp = `${timestamp.getFullYear()}-${String(timestamp.getMonth() + 1).padStart(2, "0")}-${String(
+      timestamp.getDate(),
+    ).padStart(2, "0")}_${String(timestamp.getHours()).padStart(2, "0")}-${String(timestamp.getMinutes()).padStart(
+      2,
+      "0",
+    )}`;
+
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginX = 14;
+      const marginY = 16;
+      const lineHeight = 6;
+      const rowGap = 4;
+
+      const columns = [
+        { label: "Model No.", width: 28 },
+        { label: "Product Name", width: 64 },
+        { label: "Category", width: 40 },
+        { label: "Price", width: 25 },
+        { label: "Status", width: 25 },
+      ] as const;
+
+      const subtitle = `Exported: ${timestamp.toLocaleString()}`;
+      let cursorY = marginY;
+
+      const renderHeader = (suffix = "") => {
+        doc.setFontSize(16);
+        doc.setFont("helvetica", "bold");
+        const title = `Product List${suffix ? ` ${suffix}` : ""}`;
+        doc.text(title, marginX, cursorY);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(subtitle, marginX, cursorY + 6);
+        cursorY += 14;
+
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        let x = marginX;
+        columns.forEach((col) => {
+          doc.text(col.label, x, cursorY);
+          x += col.width;
+        });
+        doc.line(marginX, cursorY + 2, pageWidth - marginX, cursorY + 2);
+        cursorY += 10;
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+      };
+
+      const ensureSpace = (heightNeeded: number) => {
+        if (cursorY + heightNeeded > pageHeight - marginY) {
+          doc.addPage();
+          cursorY = marginY;
+          renderHeader("(cont.)");
+        }
+      };
+
+      renderHeader();
+
+      if (!filteredProducts.length) {
+        ensureSpace(lineHeight);
+        doc.text("No products available for the current filters.", marginX, cursorY);
+        doc.save(`product-list-${fileStamp}.pdf`);
+        return;
+      }
+
+      filteredProducts.forEach((product) => {
+        const cellTexts = [
+          product.model_no || "-",
+          product.product_name || "-",
+          product.category || "-",
+          product.price !== null && product.price !== undefined && product.price !== "" ? String(product.price) : "-",
+          product.status || "-",
+        ];
+
+        const wrappedCells = cellTexts.map((text, index) => doc.splitTextToSize(text, columns[index].width - 2));
+
+        const rowHeight =
+          Math.max(...wrappedCells.map((lines) => (lines.length > 0 ? lines.length : 1))) * lineHeight + rowGap;
+
+        ensureSpace(rowHeight);
+
+        let x = marginX;
+
+        wrappedCells.forEach((lines, index) => {
+          lines.forEach((line, lineIndex) => {
+            doc.text(line, x, cursorY + lineIndex * lineHeight);
+          });
+
+          x += columns[index].width;
+        });
+
+        cursorY += rowHeight;
+      });
+
+      doc.save(`product-list-${fileStamp}.pdf`);
+    } catch (error) {
+      console.error("PDF export failed", error);
+      setExportError("Unable to export products right now. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
 
 
@@ -811,8 +927,12 @@ export default function ProductListPage() {
                   Upload Bulk
                 </button>
 
-                <button className="rounded-2xl border border-emerald-700 bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-500">
-                  Export CSV
+                <button
+                  className="rounded-2xl border border-emerald-700 bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-70"
+                  onClick={handleExportPdf}
+                  disabled={exporting || isLoading}
+                >
+                  {exporting ? "Exporting..." : "Export PDF"}
                 </button>
 
               </div>
@@ -921,6 +1041,9 @@ export default function ProductListPage() {
                 </span>
 
               </div>
+              {exportError && (
+                <p className="mb-4 text-sm font-semibold text-rose-500">{exportError}</p>
+              )}
 
               <div className="overflow-hidden rounded-2xl border border-slate-100">
 

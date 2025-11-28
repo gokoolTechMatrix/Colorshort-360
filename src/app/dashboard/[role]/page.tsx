@@ -38,6 +38,10 @@ const dashboards: Record<string, DashboardConfig> = {
     title: "HR Dashboard",
     Component: HrDashboard,
   },
+  "sales-manager": {
+    title: "Sales Manager Dashboard",
+    Component: SalesManagerDashboard,
+  },
   "sales-co-ordinator": {
     title: "Sales Co-ordinator Dashboard",
     Component: SalesCoordinatorDashboard,
@@ -267,32 +271,36 @@ function RestrictedView({
 
 function KpiGrid({
   items,
+  palette,
 }: {
   items: Array<{ label: string; value: string; subLabel?: string }>;
+  palette?: string[];
 }) {
-  const gradients = [
-    "bg-[#e8f0ff]",
-    "bg-[#ffe9ee]",
-    "bg-[#fff4d9]",
-    "bg-[#e9fff2]",
-  ];
+  const gradients =
+    palette ??
+    [
+      "bg-[#e8f0ff]",
+      "bg-[#ffe9ee]",
+      "bg-[#fff4d9]",
+      "bg-[#e9fff2]",
+    ];
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {items.map((item, index) => (
         <div
           key={item.label}
-          className={`group rounded-3xl border border-white/60 bg-gradient-to-br ${gradients[index % gradients.length]} p-5 shadow-lg shadow-slate-100 transition hover:-translate-y-1 hover:shadow-xl`}
-        >
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-600">
-            {item.label}
-          </p>
-          <p className="mt-3 text-3xl font-extrabold text-slate-900">
-            {item.value}
-          </p>
-          {item.subLabel && (
-            <p className="mt-1 text-sm font-semibold text-slate-700">
-              {item.subLabel}
+      className={`group rounded-3xl border border-white/60 bg-gradient-to-br ${gradients[index % gradients.length]} p-5 shadow-lg shadow-slate-100 transition hover:-translate-y-1 hover:shadow-xl`}
+    >
+      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-600">
+        {item.label}
+      </p>
+      <p className="mt-3 text-3xl font-semibold text-slate-900">
+        {item.value}
+      </p>
+      {item.subLabel && (
+        <p className="mt-1 text-sm font-semibold text-slate-700">
+          {item.subLabel}
             </p>
           )}
         </div>
@@ -423,7 +431,15 @@ function StoreInchargeDashboard({ profileName }: DashboardProps) {
         </div>
       </div>
 
-      <KpiGrid items={kpis} />
+      <KpiGrid
+        items={kpis}
+        palette={[
+          "bg-gradient-to-br from-[#7ab4ff] via-[#2f8cff] to-[#0067ff]",
+          "bg-gradient-to-br from-[#ffa3cb] via-[#ff5b9b] to-[#ff2a7a]",
+          "bg-gradient-to-br from-[#ffce70] via-[#ff9c2f] to-[#ff7600]",
+          "bg-gradient-to-br from-[#96ffc9] via-[#3eea91] to-[#00c76a]",
+        ]}
+      />
 
       <Section subtitle={`Overview for ${profileName}`} title="Stock overview" variant="pastel">
         <div className="space-y-4 text-sm text-slate-600">
@@ -897,6 +913,211 @@ function SalesCoordinatorDashboard({ profileName }: DashboardProps) {
 
       <Section title="Quick actions">
         <QuickActions actions={actions} />
+      </Section>
+    </div>
+  );
+}
+
+function SalesManagerDashboard({ profileName }: DashboardProps) {
+  const kpis = [
+    { label: "Team Pipeline", value: "Rs 3.8 Cr", subLabel: "12 deals in focus" },
+    { label: "Target Achievement", value: "76%", subLabel: "Tracking monthly quota" },
+    { label: "Win Rate", value: "31%", subLabel: "+3 pts vs last month" },
+    { label: "Follow-ups Due", value: "18", subLabel: "6 overdue today" },
+  ];
+  const leaderboard = [
+    { name: "Anita Rao", pipeline: "Rs 92L", won: 6, followups: 3, score: 93, tone: "emerald" },
+    { name: "Naveen Kumar", pipeline: "Rs 81L", won: 5, followups: 4, score: 88, tone: "indigo" },
+    { name: "Farah Iqbal", pipeline: "Rs 74L", won: 4, followups: 2, score: 84, tone: "amber" },
+    { name: "Rahul Menon", pipeline: "Rs 68L", won: 3, followups: 5, score: 79, tone: "sky" },
+  ];
+  const pipelineStages = [
+    { stage: "New Leads", count: 64, rate: "100%", fill: 100, color: "from-indigo-200 to-indigo-500" },
+    { stage: "Contacted", count: 52, rate: "81%", fill: 81, color: "from-sky-200 to-sky-500" },
+    { stage: "Quote Sent", count: 28, rate: "54%", fill: 54, color: "from-amber-200 to-amber-500" },
+    { stage: "Negotiation", count: 16, rate: "29%", fill: 29, color: "from-purple-200 to-purple-500" },
+    { stage: "Won", count: 9, rate: "14%", fill: 14, color: "from-emerald-200 to-emerald-500" },
+  ];
+  const regions = [
+    { region: "South", value: "Rs 1.4 Cr", growth: "+12%", fill: 82 },
+    { region: "West", value: "Rs 98L", growth: "+6%", fill: 68 },
+    { region: "North", value: "Rs 72L", growth: "-4%", fill: 54 },
+    { region: "East", value: "Rs 48L", growth: "+3%", fill: 46 },
+  ];
+  const alerts = [
+    "3 deals stuck in negotiation for 7+ days (seek pricing support).",
+    "6 follow-ups overdue today (reassign to available executive).",
+    "North region at 68% of target (trigger offer campaign).",
+    "2 discount approvals pending manager review.",
+  ];
+  const quickActions = [
+    "+ Assign leads",
+    "+ Approve discount",
+    "+ Broadcast update",
+    "+ Export pipeline",
+    "+ Schedule review",
+    "+ Add offer",
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#3c78ff] via-[#119dff] to-[#07d6c0] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/70">
+              Sales manager
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold text-white">
+              {profileName}, steer the team to target.
+            </h2>
+            <p className="mt-1 text-sm text-white/80">
+              Track pipeline health, unblock deals, and push regional momentum.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm font-semibold">
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Team on-track: 76%
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Priority deals: 12
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
+              Avg response: 1.8h
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button className="rounded-2xl bg-white px-4 py-2 text-indigo-700 transition hover:-translate-y-[1px] hover:shadow-sm">
+            Assign leads
+          </button>
+          <button className="rounded-2xl border border-white/60 bg-white/10 px-4 py-2 text-white transition hover:-translate-y-[1px] hover:bg-white/15">
+            Approve discounts
+          </button>
+          <button className="rounded-2xl border border-white/60 bg-white/10 px-4 py-2 text-white transition hover:-translate-y-[1px] hover:bg-white/15">
+            Export report
+          </button>
+        </div>
+      </div>
+
+      <KpiGrid items={kpis} />
+
+      <Section title="Team leaderboard" subtitle="Performance this week" variant="pastel">
+        <div className="grid gap-3 lg:grid-cols-2">
+          {leaderboard.map((member) => (
+            <div
+              key={member.name}
+              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[2px] hover:shadow-xl"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-base font-semibold text-slate-900">{member.name}</p>
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                    {member.won} won / {member.followups} follow-ups pending
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                    member.tone === "emerald"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : member.tone === "indigo"
+                        ? "bg-indigo-50 text-indigo-700"
+                        : member.tone === "amber"
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-sky-50 text-sky-700"
+                  }`}
+                >
+                  Score {member.score}
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm font-semibold text-slate-700">
+                <span>Pipeline: {member.pipeline}</span>
+                <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                  Follow-ups: {member.followups}
+                </span>
+              </div>
+              <div className="mt-3 h-2.5 rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400 transition-all duration-500"
+                  style={{ width: `${Math.min(member.score, 100)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Pipeline health" subtitle="Stage conversion and velocity" variant="pastel">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {pipelineStages.map((stage) => (
+            <div
+              key={stage.stage}
+              className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-md shadow-indigo-50 transition hover:-translate-y-[2px] hover:shadow-xl"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-800">{stage.stage}</p>
+                <span className="text-xs font-semibold text-slate-500">{stage.rate}</span>
+              </div>
+              <p className="mt-2 text-2xl font-bold text-slate-900">{stage.count}</p>
+              <div className="mt-3 h-2.5 rounded-full bg-slate-100">
+                <div
+                  className={`h-full rounded-full bg-gradient-to-r ${stage.color}`}
+                  style={{ width: `${stage.fill}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Region performance" subtitle="Revenue and growth by zone">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {regions.map((region) => (
+            <div
+              key={region.region}
+              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-800">{region.region}</p>
+                <span
+                  className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
+                    region.growth.startsWith("-")
+                      ? "bg-rose-50 text-rose-700"
+                      : "bg-emerald-50 text-emerald-700"
+                  }`}
+                >
+                  {region.growth}
+                </span>
+              </div>
+              <p className="mt-2 text-lg font-bold text-slate-900">{region.value}</p>
+              <div className="mt-3 h-2.5 rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-sky-400 to-indigo-500"
+                  style={{ width: `${region.fill}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Manager watchlist" subtitle="Alerts and approvals">
+        <div className="grid gap-3 lg:grid-cols-2">
+          {alerts.map((alert) => (
+            <div
+              key={alert}
+              className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <span>{alert}</span>
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-700">
+                Action
+              </span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Quick actions">
+        <QuickActions actions={quickActions} />
       </Section>
     </div>
   );
