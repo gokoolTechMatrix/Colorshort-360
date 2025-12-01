@@ -1,0 +1,14 @@
+{
+  "name": "mcp-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "db:migrate": "node scripts/db-migrate.js"
+  },
+  "dependencies": {
+    "colorsort_app": "file:..",
+    "pg": "^8.13.1"
+  }
+}

@@ -589,7 +589,7 @@ export default function LeadManagementPage() {
       />
 
       <main className="flex-1 px-6 py-8">
-        <header className="relative mb-6 overflow-hidden rounded-[32px] bg-gradient-to-br from-[#0ea5e9] via-[#2563eb] to-[#7c3aed] p-6 text-white shadow-xl shadow-cyan-200/60">
+        <header className="relative mb-6 overflow-hidden rounded-[32px] bg-linear-to-br from-[#0ea5e9] via-[#2563eb] to-[#7c3aed] p-6 text-white shadow-xl shadow-cyan-200/60">
           <div className="pointer-events-none absolute inset-0 opacity-70">
             <div className="absolute -left-10 -top-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
             <div className="absolute -right-10 bottom-0 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
@@ -711,7 +711,7 @@ export default function LeadManagementPage() {
               {pendingApprovals.map((lead) => (
                 <div
                   key={lead.id}
-                  className="relative overflow-hidden rounded-2xl border border-slate-100 bg-gradient-to-br from-white via-slate-50 to-indigo-50 p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+                  className="relative overflow-hidden rounded-2xl border border-slate-100 bg-linear-to-br from-white via-slate-50 to-indigo-50 p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div>
@@ -812,7 +812,7 @@ export default function LeadManagementPage() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-100 bg-gradient-to-br from-slate-50 via-cyan-50 to-white p-4 shadow-md shadow-cyan-100">
+            <div className="rounded-3xl border border-slate-100 bg-linear-to-br from-slate-50 via-cyan-50 to-white p-4 shadow-md shadow-cyan-100">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
                 Manager quick actions
               </p>
@@ -848,19 +848,19 @@ export default function LeadManagementPage() {
               <div className="flex flex-wrap gap-2 text-xs font-semibold">
                 <button
                   onClick={addPayment}
-                  className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
+                  className="rounded-full bg-linear-to-r from-emerald-500 to-teal-500 px-4 py-2 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
                 >
                   + Record payment
                 </button>
                 <button
                   onClick={addCreditNote}
-                  className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
+                  className="rounded-full bg-linear-to-r from-amber-500 to-orange-500 px-4 py-2 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
                 >
                   + Credit note
                 </button>
                 <button
                   onClick={addDebitNote}
-                  className="rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-4 py-2 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
+                  className="rounded-full bg-linear-to-r from-rose-500 to-red-500 px-4 py-2 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
                 >
                   + Debit note
                 </button>
@@ -868,7 +868,7 @@ export default function LeadManagementPage() {
             </div>
 
             <div className="mt-4 grid gap-4 lg:grid-cols-3">
-              <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
+              <div className="rounded-2xl border border-slate-100 bg-linear-to-br from-slate-50 to-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                     Payments
@@ -897,7 +897,7 @@ export default function LeadManagementPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
+              <div className="rounded-2xl border border-slate-100 bg-linear-to-br from-slate-50 to-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                     Credit notes
@@ -926,7 +926,7 @@ export default function LeadManagementPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
+              <div className="rounded-2xl border border-slate-100 bg-linear-to-br from-slate-50 to-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                     Debit notes
@@ -1119,25 +1119,25 @@ export default function LeadManagementPage() {
                           {isFinanceRole && lead.stage === "Won" && (
                             <>
                               <button
-                                className="rounded-full bg-gradient-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Invoice")}
                               >
                                 Invoice
                               </button>
                               <button
-                                className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Payment receipt")}
                               >
                                 Record Payment
                               </button>
                               <button
-                                className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Credit note")}
                               >
                                 Credit Note
                               </button>
                               <button
-                                className="rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-rose-500 to-red-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Debit note")}
                               >
                                 Debit Note
@@ -1176,7 +1176,7 @@ export default function LeadManagementPage() {
                     {column.items.map((lead) => (
                       <div
                         key={lead.id}
-                        className="rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-cyan-50 p-3 shadow-sm"
+                        className="rounded-2xl border border-slate-100 bg-linear-to-br from-white to-cyan-50 p-3 shadow-sm"
                       >
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-semibold text-slate-900">
@@ -1226,25 +1226,25 @@ export default function LeadManagementPage() {
                           {isFinanceRole && lead.stage === "Won" && (
                             <>
                               <button
-                                className="rounded-full bg-gradient-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Invoice")}
                               >
                                 Invoice
                               </button>
                               <button
-                                className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Payment receipt")}
                               >
                                 Record Payment
                               </button>
                               <button
-                                className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Credit note")}
                               >
                                 Credit Note
                               </button>
                               <button
-                                className="rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-rose-500 to-red-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Debit note")}
                               >
                                 Debit Note
@@ -1276,7 +1276,7 @@ function LeadToast({ message }: { message: string }) {
   return (
     <div className="pointer-events-none fixed inset-0 z-50 flex items-start justify-center">
       <div
-        className="mt-10 rounded-3xl bg-gradient-to-r from-cyan-200 via-cyan-300 to-sky-300 px-6 py-4 text-sm font-semibold text-slate-900 shadow-[0_15px_40px_rgba(14,165,233,0.35)] backdrop-blur"
+        className="mt-10 rounded-3xl bg-linear-to-r from-cyan-200 via-cyan-300 to-sky-300 px-6 py-4 text-sm font-semibold text-slate-900 shadow-[0_15px_40px_rgba(14,165,233,0.35)] backdrop-blur"
         style={{
           animation: "toastPop 220ms ease, toastFade 320ms ease 2.7s forwards",
         }}
