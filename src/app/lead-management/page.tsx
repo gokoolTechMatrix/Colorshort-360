@@ -495,6 +495,17 @@ export default function LeadManagementPage() {
     setToast(`Lead ${leadId} assigned to ${owner}`);
   };
 
+  const handleRejectLead = (leadId: string) => {
+    if (!caps.canApproveQuotation) return;
+    handleStageChange(leadId, "In Discussion");
+    setToast(`Lead ${leadId} sent back for revision`);
+  };
+
+  const handleNeedInfo = (leadId: string) => {
+    if (!caps.canApproveQuotation) return;
+    setToast(`Requested more info for ${leadId}`);
+  };
+
   const handleFinanceAction = (leadId: string, action: string) => {
     if (!isFinanceRole) return;
     setToast(`${action} for ${leadId} ready`);
@@ -535,20 +546,32 @@ export default function LeadManagementPage() {
     items: filteredLeads.filter((lead) => lead.stage === stage),
   }));
 
+  const parseNextAt = (value: string) => new Date(value.replace(" ", "T"));
+  const now = Date.now();
+  const pendingApprovals = filteredLeads.filter((lead) => lead.stage === "Pending Approval");
+  const atRiskLeads = filteredLeads.filter((lead) => {
+    const nextDate = parseNextAt(lead.nextAt);
+    if (Number.isNaN(nextDate.getTime())) return false;
+    const diffDays = (now - nextDate.getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays >= 2; // overdue by 2+ days
+  });
+  const overdueFollowups = filteredLeads.filter((lead) => {
+    const nextDate = parseNextAt(lead.nextAt);
+    return !Number.isNaN(nextDate.getTime()) && nextDate.getTime() < now;
+  });
+  const hotLeads = filteredLeads.filter((lead) => lead.temperature === "Hot");
+
   const kpis = [
-    { label: "Total Leads", value: leads.length },
-    {
-      label: "Hot Leads",
-      value: leads.filter((l) => l.temperature === "Hot").length,
-    },
-    {
-      label: "Pending Approval",
-      value: leads.filter((l) => l.stage === "Pending Approval").length,
-    },
-    {
-      label: "Won",
-      value: leads.filter((l) => l.stage === "Won").length,
-    },
+    { label: "Team Pipeline", value: "Rs 3.8 Cr", subLabel: `${filteredLeads.length} active deals` },
+    { label: "Pending approvals", value: pendingApprovals.length, subLabel: "Needs manager decision" },
+    { label: "At-risk & overdue", value: atRiskLeads.length, subLabel: `${overdueFollowups.length} follow-ups overdue` },
+    { label: "Hot leads", value: hotLeads.length, subLabel: "Prioritize demos & quotes" },
+  ];
+  const kpiStyles = [
+    { bg: "bg-sky-50", border: "border-sky-100", accent: "text-sky-700" },
+    { bg: "bg-amber-50", border: "border-amber-100", accent: "text-amber-700" },
+    { bg: "bg-emerald-50", border: "border-emerald-100", accent: "text-emerald-700" },
+    { bg: "bg-indigo-50", border: "border-indigo-100", accent: "text-indigo-700" },
   ];
 
   return (
@@ -566,66 +589,249 @@ export default function LeadManagementPage() {
       />
 
       <main className="flex-1 px-6 py-8">
-        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-linear-to-r from-slate-50 via-white to-cyan-50 px-4 py-4 shadow-sm">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500">
-              Lead management
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-              Pipeline overview
-            </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full bg-linear-to-r from-cyan-400 to-sky-500 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-sm shadow-cyan-200">
-                Role
-                <span className="rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-bold text-cyan-700">
+        <header className="relative mb-6 overflow-hidden rounded-[32px] bg-linear-to-br from-[#0ea5e9] via-[#2563eb] to-[#7c3aed] p-6 text-white shadow-xl shadow-cyan-200/60">
+          <div className="pointer-events-none absolute inset-0 opacity-70">
+            <div className="absolute -left-10 -top-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+            <div className="absolute -right-10 bottom-0 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+            <div className="absolute left-1/3 top-4 h-28 w-28 rounded-full bg-cyan-300/20 blur-2xl" />
+          </div>
+          <div className="relative flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-2">
+              <span className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-sm backdrop-blur">
+                Lead management
+                <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-cyan-700">
                   {profileRole.replace(/-/g, " ")}
                 </span>
               </span>
+              <h1 className="text-3xl font-semibold leading-tight text-white">
+                Sales Manager lead control room
+              </h1>
+              <p className="max-w-2xl text-sm text-white/80">
+                Approve quotes, reassign stuck deals, and keep the funnel healthy with faster follow-ups.
+              </p>
+              <div className="flex flex-wrap gap-3 text-xs font-semibold">
+                <span className="rounded-full bg-white/15 px-3 py-1.5 text-white backdrop-blur">
+                  Pending approvals: {pendingApprovals.length}
+                </span>
+                <span className="rounded-full bg-white/15 px-3 py-1.5 text-white backdrop-blur">
+                  At-risk: {atRiskLeads.length}
+                </span>
+                <span className="rounded-full bg-white/15 px-3 py-1.5 text-white backdrop-blur">
+                  Hot leads: {hotLeads.length}
+                </span>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
-              onClick={handleRefreshLeads}
-              aria-label="Refresh leads"
-              disabled={isRefreshingLeads}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className={`h-4 w-4 text-slate-500 ${isRefreshingLeads ? "animate-spin" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                className="flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/25 disabled:opacity-60"
+                onClick={handleRefreshLeads}
+                aria-label="Refresh leads"
+                disabled={isRefreshingLeads}
               >
-                <path d="M4 4v6h6M20 20v-6h-6" />
-                <path d="M5 13a7 7 0 0 0 12 3M19 11A7 7 0 0 0 7.05 8.05" />
-              </svg>
-              Refresh
-            </button>
-            {caps.canCreate && (
-              <button className="rounded-full bg-linear-to-r from-rose-500 to-amber-400 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition hover:brightness-105">
-                + New Lead
+                <svg
+                  viewBox="0 0 24 24"
+                  className={`h-4 w-4 text-white ${isRefreshingLeads ? "animate-spin" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                >
+                  <path d="M4 4v6h6M20 20v-6h-6" />
+                  <path d="M5 13a7 7 0 0 0 12 3M19 11A7 7 0 0 0 7.05 8.05" />
+                </svg>
+                Refresh
               </button>
-            )}
+              {caps.canAssign && (
+                <button className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50">
+                  Approval queue
+                </button>
+              )}
+              {caps.canAssign && (
+                <button className="rounded-full border border-white/40 bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25">
+                  Bulk reassign
+                </button>
+              )}
+              {caps.canCreate && (
+                <button className="rounded-full border border-white/40 bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25">
+                  + New Lead
+                </button>
+              )}
+            </div>
           </div>
         </header>
 
         <section className="grid gap-4 md:grid-cols-4">
-          {kpis.map((kpi) => (
-            <div
-              key={kpi.label}
-              className="relative overflow-hidden rounded-3xl bg-linear-to-br from-cyan-200 via-sky-100 to-indigo-100 p-4 shadow-md shadow-cyan-200/70 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-200/80"
-            >
-              <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.18),transparent_35%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.16),transparent_30%),radial-gradient(circle_at_50%_80%,rgba(56,189,248,0.18),transparent_35%)]" />
-              <div className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
-                {kpi.label}
+          {kpis.map((kpi, index) => {
+            const palette = kpiStyles[index % kpiStyles.length];
+            return (
+              <div
+                key={kpi.label}
+                className={`relative overflow-hidden rounded-3xl border ${palette.border} ${palette.bg} p-4 text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md`}
+              >
+                <div className={`text-[11px] font-semibold uppercase tracking-[0.28em] ${palette.accent}`}>
+                  {kpi.label}
+                </div>
+                <div className="mt-2 text-3xl font-semibold text-slate-900">{kpi.value}</div>
+                {kpi.subLabel && (
+                  <div className="mt-1 text-xs font-semibold text-slate-600">{kpi.subLabel}</div>
+                )}
               </div>
-              <div className="mt-2 text-3xl font-semibold text-slate-900">
-                {kpi.value}
+            );
+          })}
+        </section>
+
+        <section className="mt-6 grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2 rounded-3xl border border-slate-100 bg-white/90 p-4 shadow-lg shadow-indigo-100/60">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
+                  Approval queue
+                </p>
+                <p className="text-sm font-semibold text-slate-600">
+                  {pendingApprovals.length} waiting for manager decision
+                </p>
+              </div>
+              {caps.canApproveQuotation && (
+                <div className="flex items-center gap-2 text-xs font-semibold">
+                  <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                    Needs review
+                  </span>
+                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">
+                    Approve / Reject / Info
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {pendingApprovals.length === 0 && (
+                <div className="col-span-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-6 text-center text-sm font-semibold text-slate-500">
+                  No approvals pending. You are clear for now.
+                </div>
+              )}
+              {pendingApprovals.map((lead) => (
+                <div
+                  key={lead.id}
+                  className="relative overflow-hidden rounded-2xl border border-slate-100 bg-linear-to-br from-white via-slate-50 to-indigo-50 p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {lead.customer} <span className="text-xs text-slate-500">({lead.id})</span>
+                      </p>
+                      <p className="text-xs text-slate-500">{lead.company}</p>
+                    </div>
+                    <span className="rounded-full bg-indigo-100 px-2 py-1 text-[11px] font-semibold text-indigo-700">
+                      {lead.value}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+                    <span className="rounded-full bg-white px-2 py-1 text-slate-600">
+                      {lead.product}
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
+                      {lead.owner}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-1 text-white ${
+                        lead.temperature === "Hot"
+                          ? "bg-rose-500"
+                          : lead.temperature === "Warm"
+                            ? "bg-amber-500"
+                            : "bg-slate-400"
+                      }`}
+                    >
+                      {lead.temperature}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs font-semibold text-slate-600">
+                    Next: {lead.nextAction} • {lead.nextAt}
+                  </p>
+                  {caps.canApproveQuotation && (
+                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
+                      <button
+                        className="rounded-full bg-emerald-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-400"
+                        onClick={() => handleStageChange(lead.id, "Approved")}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        className="rounded-full bg-amber-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:bg-amber-400"
+                        onClick={() => handleNeedInfo(lead.id)}
+                      >
+                        Need Info
+                      </button>
+                      <button
+                        className="rounded-full bg-rose-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:bg-rose-400"
+                        onClick={() => handleRejectLead(lead.id)}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="rounded-3xl border border-slate-100 bg-white/90 p-4 shadow-lg shadow-emerald-100/60">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
+                  At-risk & overdue
+                </p>
+                <span className="rounded-full bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-600">
+                  {atRiskLeads.length}
+                </span>
+              </div>
+              <div className="space-y-2 text-sm text-slate-700">
+                {atRiskLeads.slice(0, 4).map((lead) => (
+                  <div
+                    key={lead.id}
+                    className="rounded-xl border border-rose-100 bg-rose-50/70 px-3 py-2 shadow-sm shadow-rose-100"
+                  >
+                    <div className="flex items-center justify-between text-sm font-semibold text-slate-900">
+                      <span>{lead.customer}</span>
+                      <span className="text-[11px] text-rose-600">Overdue</span>
+                    </div>
+                    <p className="text-xs text-slate-600">
+                      {lead.nextAction} • {lead.nextAt}
+                    </p>
+                    {caps.canAssign && (
+                      <button
+                        className="mt-2 rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-rose-600 shadow-sm transition hover:bg-rose-50"
+                        onClick={() => handleAssign(lead.id, "Sales Manager")}
+                      >
+                        Reassign / Recover
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {atRiskLeads.length === 0 && (
+                  <p className="text-xs font-semibold text-slate-500">No at-risk leads detected.</p>
+                )}
               </div>
             </div>
-          ))}
+
+            <div className="rounded-3xl border border-slate-100 bg-linear-to-br from-slate-50 via-cyan-50 to-white p-4 shadow-md shadow-cyan-100">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
+                Manager quick actions
+              </p>
+              <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-700">
+                <button className="flex items-center justify-between rounded-2xl bg-white px-3 py-2 shadow-sm transition hover:-translate-y-[1px] hover:shadow-md">
+                  + Assign to executive
+                  <span className="text-xs text-cyan-600">Team only</span>
+                </button>
+                <button className="flex items-center justify-between rounded-2xl bg-white px-3 py-2 shadow-sm transition hover:-translate-y-[1px] hover:shadow-md">
+                  Broadcast update
+                  <span className="text-xs text-indigo-600">Notify team</span>
+                </button>
+                <button className="flex items-center justify-between rounded-2xl bg-white px-3 py-2 shadow-sm transition hover:-translate-y-[1px] hover:shadow-md">
+                  Export lead list
+                  <span className="text-xs text-emerald-600">PDF/CSV</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </section>
 
         {isFinanceRole && (
