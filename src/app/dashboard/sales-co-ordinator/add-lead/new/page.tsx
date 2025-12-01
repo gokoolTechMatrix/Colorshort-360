@@ -3,7 +3,7 @@
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getRoleFromEmail } from "@/lib/role-map";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 const SUPER_ADMIN_EMAIL =
@@ -83,7 +83,9 @@ const stateOptions = [
 export default function CreateLeadWizardPage() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const router = useRouter();
+  const pathname = usePathname();
   const [profileName, setProfileName] = useState("Team Member");
+  const [roleSlug, setRoleSlug] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [companyLogo, setCompanyLogo] = useState("/image.png");
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -93,6 +95,8 @@ export default function CreateLeadWizardPage() {
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [gstError, setGstError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [form, setForm] = useState<LeadFormState>({
     companyName: "",
     contactPerson: "",
@@ -109,6 +113,7 @@ export default function CreateLeadWizardPage() {
     priority: "Warm",
     expectedQty: "",
   });
+  const addLeadBasePath = `/dashboard/${roleSlug || "sales-co-ordinator"}/add-lead`;
 
   useEffect(() => {
     let active = true;
@@ -131,16 +136,20 @@ export default function CreateLeadWizardPage() {
       const derivedName =
         (user.user_metadata?.full_name as string | undefined) ?? "Team Member";
       setProfileName(derivedName);
+      setRoleSlug(slug || null);
 
-      if (
-        user.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
-        slug === "super_admin"
-      ) {
-        router.replace("/dashboard/admin");
-        return;
-      }
+      const allowedCreators = new Set([
+        "sales-co-ordinator",
+        "sales-executive",
+        "sales-manager",
+        "admin",
+        "super-admin",
+        "super_admin",
+      ]);
 
-      if (slug !== "sales-co-ordinator") {
+      const isSuperAdminEmail = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+
+      if (!isSuperAdminEmail && slug && !allowedCreators.has(slug)) {
         router.replace(slug ? `/dashboard/${slug}` : "/dashboard");
         return;
       }
@@ -253,27 +262,43 @@ export default function CreateLeadWizardPage() {
     });
   const prevStep = () => setStep((s) => Math.max(1, s - 1));
 
-  const handleSubmit = () => {
-    const newLead: StoredLead = {
-      id: `L-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      companyName: form.companyName,
-      contactPerson: form.contactPerson,
-      phone: form.phone,
-      email: form.email,
-      state: form.state,
-      city: form.city,
-      address: form.address,
-      gst: form.gst,
-      source: form.source,
-      model: form.model,
-      purpose: form.purpose || form.purposeOption,
-      priority: form.priority,
-      expectedQty: form.expectedQty,
-    };
-    const existing = loadStoredLeads();
-    saveStoredLeads([newLead, ...existing]);
-    router.push("/dashboard/sales-co-ordinator/add-lead?tab=my-leads");
+  const handleSubmit = async () => {
+    setSaveError(null);
+    if (!form.companyName.trim() || !form.contactPerson.trim() || !form.phone.trim()) {
+      setSaveError("Company, contact person, and phone are required.");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company_id: 1,
+          lead_source_: form.source || "App",
+          customer_name: form.companyName,
+          contact_person: form.contactPerson,
+          phone: form.phone,
+          email: form.email,
+          state: form.state,
+          purpose_switch: form.purpose || form.purposeOption || form.model || "New requirement",
+          status: "New",
+          gst: form.gst,
+          hot_cold_flag: form.priority || "Warm",
+          next_followup_on: null,
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.message || "Unable to create lead");
+      }
+      router.push(`${addLeadBasePath}?tab=my-leads`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to save lead";
+      setSaveError(message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isChecking) {
@@ -292,7 +317,7 @@ export default function CreateLeadWizardPage() {
         companyLogo={companyLogo}
         onLogout={handleLogout}
         isSigningOut={isSigningOut}
-        activeHref="/dashboard/sales-co-ordinator/add-lead/new"
+        activeHref={pathname ?? `${addLeadBasePath}/new`}
         showLeadManagement
       />
 
@@ -307,7 +332,7 @@ export default function CreateLeadWizardPage() {
             </h1>
           </div>
           <button
-            onClick={() => router.push("/dashboard/sales-co-ordinator/add-lead")}
+            onClick={() => router.push(addLeadBasePath)}
             className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
           >
             Back to selection
@@ -540,7 +565,13 @@ export default function CreateLeadWizardPage() {
             </div>
           )}
 
-          <div className="mt-8 flex items-center justify-between">
+          {saveError && (
+            <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+              {saveError}
+            </div>
+          )}
+
+          <div className="mt-6 flex items-center justify-between">
             <button
               onClick={prevStep}
               disabled={step === 1}
@@ -579,9 +610,13 @@ export default function CreateLeadWizardPage() {
             ) : (
               <button
                 onClick={handleSubmit}
-                className="flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(16,185,129,0.35)] transition hover:-translate-y-[1px] hover:shadow-[0_16px_35px_rgba(16,185,129,0.45)]"
+                disabled={isSaving}
+                className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(16,185,129,0.25)] transition hover:-translate-y-[1px] hover:shadow-[0_16px_35px_rgba(16,185,129,0.35)] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                Create lead
+                {isSaving && (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                )}
+                {isSaving ? "Saving..." : "Create lead"}
                 <svg
                   viewBox="0 0 24 24"
                   className="h-4 w-4"

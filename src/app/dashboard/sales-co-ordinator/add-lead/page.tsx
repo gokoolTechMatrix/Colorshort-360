@@ -3,7 +3,7 @@
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getRoleFromEmail } from "@/lib/role-map";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -50,7 +50,9 @@ export default function SalesCoordinatorAddLeadPage() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [profileName, setProfileName] = useState("Team Member");
+  const [roleSlug, setRoleSlug] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [companyLogo, setCompanyLogo] = useState("/image.png");
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -80,16 +82,20 @@ export default function SalesCoordinatorAddLeadPage() {
       const derivedName =
         (user.user_metadata?.full_name as string | undefined) ?? "Team Member";
       setProfileName(derivedName);
+      setRoleSlug(slug || null);
 
-      if (
-        user.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
-        slug === "super_admin"
-      ) {
-        router.replace("/dashboard/admin");
-        return;
-      }
+      const allowedCreators = new Set([
+        "super-admin",
+        "super_admin",
+        "admin",
+        "sales-manager",
+        "sales-co-ordinator",
+        "sales-executive",
+      ]);
 
-      if (slug !== "sales-co-ordinator") {
+      const isSuperAdminEmail = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+
+      if (!isSuperAdminEmail && slug && !allowedCreators.has(slug)) {
         router.replace(slug ? `/dashboard/${slug}` : "/dashboard");
         return;
       }
@@ -168,6 +174,8 @@ export default function SalesCoordinatorAddLeadPage() {
     );
   }
 
+  const addLeadBasePath = `/dashboard/${roleSlug || "sales-co-ordinator"}/add-lead`;
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar
@@ -176,7 +184,7 @@ export default function SalesCoordinatorAddLeadPage() {
         companyLogo={companyLogo}
         onLogout={handleLogout}
         isSigningOut={isSigningOut}
-        activeHref="/dashboard/sales-co-ordinator/add-lead"
+        activeHref={pathname ?? addLeadBasePath}
         showLeadManagement
       />
 
@@ -244,7 +252,7 @@ export default function SalesCoordinatorAddLeadPage() {
                 tone="blue"
                 title="New Client"
                 description="Create a lead for a completely new customer. Add company information, contact details, and requirements."
-                onSelect={() => router.push("/dashboard/sales-co-ordinator/add-lead/new")}
+                onSelect={() => router.push(`${addLeadBasePath}/new`)}
                 icon={
                   <svg
                     viewBox="0 0 24 24"
@@ -265,7 +273,7 @@ export default function SalesCoordinatorAddLeadPage() {
                 tone="emerald"
                 title="Existing Client"
                 description="Create a lead for a customer who has worked with us. Search the database and set up the new opportunity quickly."
-                onSelect={() => router.push("/dashboard/sales-co-ordinator/add-lead/new")}
+                onSelect={() => router.push(`${addLeadBasePath}/new`)}
                 icon={
                   <svg
                     viewBox="0 0 24 24"

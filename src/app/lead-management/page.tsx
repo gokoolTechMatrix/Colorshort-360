@@ -336,6 +336,56 @@ const stageOrder: LeadStage[] = [
   "Lost",
 ];
 
+type SupabaseLeadRow = {
+  id: number;
+  customer_name?: string | null;
+  contact_person?: string | null;
+  state?: string | null;
+  purpose_switch?: string | null;
+  status?: string | null;
+  hot_cold_flag?: string | null;
+  lead_source_?: string | null;
+  next_followup_on?: string | null;
+};
+
+const mapSupabaseLead = (lead: SupabaseLeadRow): Lead => {
+  const stageFromStatus = (status?: string | null): LeadStage => {
+    const normalized = (status ?? "").toLowerCase();
+    if (normalized.includes("won")) return "Won";
+    if (normalized.includes("lost")) return "Lost";
+    if (normalized.includes("approve")) return "Pending Approval";
+    if (normalized.includes("discussion")) return "In Discussion";
+    if (normalized.includes("approved")) return "Approved";
+    return "New";
+  };
+  const temperatureFromFlag = (flag?: string | null): LeadTemperature => {
+    const normalized = (flag ?? "").toLowerCase();
+    if (normalized === "hot") return "Hot";
+    if (normalized === "cold") return "Cold";
+    return "Warm";
+  };
+  const stage = stageFromStatus(lead.status);
+  const temperature = temperatureFromFlag(lead.hot_cold_flag);
+  return {
+    id: `SUP-${lead.id}`,
+    customer: lead.contact_person || lead.customer_name || "Customer",
+    company: lead.customer_name || "Company",
+    owner: "Unassigned",
+    role: "sales-executive",
+    zone: lead.state || "Zone",
+    state: lead.state || "State",
+    product: lead.purpose_switch || "Lead",
+    source: lead.lead_source_ || "App",
+    stage,
+    temperature,
+    value: "�,0",
+    nextAction: lead.purpose_switch ? `Discuss: ${lead.purpose_switch}` : "Follow up",
+    nextAt: lead.next_followup_on
+      ? lead.next_followup_on
+      : new Date().toISOString().slice(0, 10),
+  };
+};
+
 export default function LeadManagementPage() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const router = useRouter();
@@ -425,6 +475,22 @@ export default function LeadManagementPage() {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    if (isCheckingAuth) return;
+    const fetchSupabaseLeads = async () => {
+      try {
+        const response = await fetch("/api/leads", { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { leads?: SupabaseLeadRow[] };
+        const mapped = (payload.leads ?? []).map(mapSupabaseLead);
+        setLeads([...mapped, ...mockLeads]);
+      } catch {
+        // best effort
+      }
+    };
+    void fetchSupabaseLeads();
+  }, [isCheckingAuth]);
+
   const handleLogout = async () => {
     if (isSigningOut) return;
     setIsSigningOut(true);
@@ -499,6 +565,16 @@ export default function LeadManagementPage() {
     if (!caps.canApproveQuotation) return;
     handleStageChange(leadId, "In Discussion");
     setToast(`Lead ${leadId} sent back for revision`);
+  };
+
+  const handleNewLead = () => {
+    const rawRole = profileRole || "sales-co-ordinator";
+    const targetRole =
+      rawRole
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "sales-co-ordinator";
+    router.push(`/dashboard/${targetRole}/add-lead/new`);
   };
 
   const handleNeedInfo = (leadId: string) => {
@@ -586,6 +662,9 @@ export default function LeadManagementPage() {
         showSettings={profileRole === "super_admin"}
         showUserCreation={profileRole === "super_admin"}
         showLeadManagement
+        showCustomerVendorManagement={
+          profileRole === "admin" || profileRole === "super_admin"
+        }
       />
 
       <main className="flex-1 px-6 py-8">
@@ -604,7 +683,9 @@ export default function LeadManagementPage() {
                 </span>
               </span>
               <h1 className="text-3xl font-semibold leading-tight text-white">
-                Sales Manager lead control room
+                {profileRole === "admin" || profileRole === "super_admin"
+                  ? "Lead control room"
+                  : "Sales Manager lead control room"}
               </h1>
               <p className="max-w-2xl text-sm text-white/80">
                 Approve quotes, reassign stuck deals, and keep the funnel healthy with faster follow-ups.
@@ -652,7 +733,10 @@ export default function LeadManagementPage() {
                 </button>
               )}
               {caps.canCreate && (
-                <button className="rounded-full border border-white/40 bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25">
+                <button
+                  onClick={handleNewLead}
+                  className="rounded-full border border-white/40 bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25"
+                >
                   + New Lead
                 </button>
               )}
