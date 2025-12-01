@@ -566,7 +566,7 @@ export default function LeadManagementPage() {
       />
 
       <main className="flex-1 px-6 py-8">
-        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-gradient-to-r from-slate-50 via-white to-cyan-50 px-4 py-4 shadow-sm">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-linear-to-r from-slate-50 via-white to-cyan-50 px-4 py-4 shadow-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500">
               Lead management
@@ -575,7 +575,7 @@ export default function LeadManagementPage() {
               Pipeline overview
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-400 to-sky-500 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-sm shadow-cyan-200">
+              <span className="inline-flex items-center gap-2 rounded-full bg-linear-to-r from-cyan-400 to-sky-500 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-sm shadow-cyan-200">
                 Role
                 <span className="rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-bold text-cyan-700">
                   {profileRole.replace(/-/g, " ")}
@@ -604,7 +604,7 @@ export default function LeadManagementPage() {
               Refresh
             </button>
             {caps.canCreate && (
-              <button className="rounded-full bg-gradient-to-r from-rose-500 to-amber-400 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition hover:brightness-105">
+              <button className="rounded-full bg-linear-to-r from-rose-500 to-amber-400 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition hover:brightness-105">
                 + New Lead
               </button>
             )}
@@ -615,7 +615,7 @@ export default function LeadManagementPage() {
           {kpis.map((kpi) => (
             <div
               key={kpi.label}
-              className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-200 via-sky-100 to-indigo-100 p-4 shadow-md shadow-cyan-200/70 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-200/80"
+              className="relative overflow-hidden rounded-3xl bg-linear-to-br from-cyan-200 via-sky-100 to-indigo-100 p-4 shadow-md shadow-cyan-200/70 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-200/80"
             >
               <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.18),transparent_35%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.16),transparent_30%),radial-gradient(circle_at_50%_80%,rgba(56,189,248,0.18),transparent_35%)]" />
               <div className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
@@ -642,19 +642,19 @@ export default function LeadManagementPage() {
               <div className="flex flex-wrap gap-2 text-xs font-semibold">
                 <button
                   onClick={addPayment}
-                  className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
+                  className="rounded-full bg-linear-to-r from-emerald-500 to-teal-500 px-4 py-2 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
                 >
                   + Record payment
                 </button>
                 <button
                   onClick={addCreditNote}
-                  className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
+                  className="rounded-full bg-linear-to-r from-amber-500 to-orange-500 px-4 py-2 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
                 >
                   + Credit note
                 </button>
                 <button
                   onClick={addDebitNote}
-                  className="rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-4 py-2 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
+                  className="rounded-full bg-linear-to-r from-rose-500 to-red-500 px-4 py-2 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
                 >
                   + Debit note
                 </button>
@@ -662,7 +662,7 @@ export default function LeadManagementPage() {
             </div>
 
             <div className="mt-4 grid gap-4 lg:grid-cols-3">
-              <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
+              <div className="rounded-2xl border border-slate-100 bg-linear-to-br from-slate-50 to-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                     Payments
@@ -691,7 +691,7 @@ export default function LeadManagementPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
+              <div className="rounded-2xl border border-slate-100 bg-linear-to-br from-slate-50 to-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                     Credit notes
@@ -720,7 +720,7 @@ export default function LeadManagementPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
+              <div className="rounded-2xl border border-slate-100 bg-linear-to-br from-slate-50 to-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                     Debit notes
@@ -913,25 +913,25 @@ export default function LeadManagementPage() {
                           {isFinanceRole && lead.stage === "Won" && (
                             <>
                               <button
-                                className="rounded-full bg-gradient-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Invoice")}
                               >
                                 Invoice
                               </button>
                               <button
-                                className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Payment receipt")}
                               >
                                 Record Payment
                               </button>
                               <button
-                                className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Credit note")}
                               >
                                 Credit Note
                               </button>
                               <button
-                                className="rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-rose-500 to-red-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Debit note")}
                               >
                                 Debit Note
@@ -970,7 +970,7 @@ export default function LeadManagementPage() {
                     {column.items.map((lead) => (
                       <div
                         key={lead.id}
-                        className="rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-cyan-50 p-3 shadow-sm"
+                        className="rounded-2xl border border-slate-100 bg-linear-to-br from-white to-cyan-50 p-3 shadow-sm"
                       >
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-semibold text-slate-900">
@@ -1020,25 +1020,25 @@ export default function LeadManagementPage() {
                           {isFinanceRole && lead.stage === "Won" && (
                             <>
                               <button
-                                className="rounded-full bg-gradient-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Invoice")}
                               >
                                 Invoice
                               </button>
                               <button
-                                className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Payment receipt")}
                               >
                                 Record Payment
                               </button>
                               <button
-                                className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Credit note")}
                               >
                                 Credit Note
                               </button>
                               <button
-                                className="rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
+                                className="rounded-full bg-linear-to-r from-rose-500 to-red-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
                                 onClick={() => handleFinanceAction(lead.id, "Debit note")}
                               >
                                 Debit Note
@@ -1070,7 +1070,7 @@ function LeadToast({ message }: { message: string }) {
   return (
     <div className="pointer-events-none fixed inset-0 z-50 flex items-start justify-center">
       <div
-        className="mt-10 rounded-3xl bg-gradient-to-r from-cyan-200 via-cyan-300 to-sky-300 px-6 py-4 text-sm font-semibold text-slate-900 shadow-[0_15px_40px_rgba(14,165,233,0.35)] backdrop-blur"
+        className="mt-10 rounded-3xl bg-linear-to-r from-cyan-200 via-cyan-300 to-sky-300 px-6 py-4 text-sm font-semibold text-slate-900 shadow-[0_15px_40px_rgba(14,165,233,0.35)] backdrop-blur"
         style={{
           animation: "toastPop 220ms ease, toastFade 320ms ease 2.7s forwards",
         }}
