@@ -567,6 +567,12 @@ export default function LeadManagementPage() {
     { label: "At-risk & overdue", value: atRiskLeads.length, subLabel: `${overdueFollowups.length} follow-ups overdue` },
     { label: "Hot leads", value: hotLeads.length, subLabel: "Prioritize demos & quotes" },
   ];
+  const kpiStyles = [
+    { bg: "bg-sky-50", border: "border-sky-100", accent: "text-sky-700" },
+    { bg: "bg-amber-50", border: "border-amber-100", accent: "text-amber-700" },
+    { bg: "bg-emerald-50", border: "border-emerald-100", accent: "text-emerald-700" },
+    { bg: "bg-indigo-50", border: "border-indigo-100", accent: "text-indigo-700" },
+  ];
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -617,7 +623,7 @@ export default function LeadManagementPage() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <button
-                className="flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-cyan-200/50 transition hover:bg-white/25 disabled:opacity-60"
+                className="flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/25 disabled:opacity-60"
                 onClick={handleRefreshLeads}
                 aria-label="Refresh leads"
                 disabled={isRefreshingLeads}
@@ -636,17 +642,17 @@ export default function LeadManagementPage() {
                 Refresh
               </button>
               {caps.canAssign && (
-                <button className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-cyan-700 shadow-lg shadow-cyan-200 transition hover:-translate-y-[1px] hover:shadow-xl">
+                <button className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50">
                   Approval queue
                 </button>
               )}
               {caps.canAssign && (
-                <button className="rounded-full border border-white/40 bg-white/20 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-300/40 transition hover:bg-white/30">
+                <button className="rounded-full border border-white/40 bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25">
                   Bulk reassign
                 </button>
               )}
               {caps.canCreate && (
-                <button className="rounded-full border border-white/40 bg-white/20 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-rose-200/40 transition hover:bg-white/30">
+                <button className="rounded-full border border-white/40 bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25">
                   + New Lead
                 </button>
               )}
@@ -656,24 +662,18 @@ export default function LeadManagementPage() {
 
         <section className="grid gap-4 md:grid-cols-4">
           {kpis.map((kpi, index) => {
-            const palette = [
-              "from-[#38bdf8] via-[#0ea5e9] to-[#2563eb]",
-              "from-[#fb7185] via-[#f97316] to-[#f59e0b]",
-              "from-[#22c55e] via-[#0ea5e9] to-[#2563eb]",
-              "from-[#a855f7] via-[#6366f1] to-[#0ea5e9]",
-            ];
+            const palette = kpiStyles[index % kpiStyles.length];
             return (
               <div
                 key={kpi.label}
-                className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${palette[index % palette.length]} p-4 text-white shadow-lg shadow-cyan-300/40 transition hover:-translate-y-0.5 hover:shadow-xl`}
+                className={`relative overflow-hidden rounded-3xl border ${palette.border} ${palette.bg} p-4 text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md`}
               >
-                <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.24),transparent_35%),radial-gradient(circle_at_80%_10%,rgba(255,255,255,0.14),transparent_30%),radial-gradient(circle_at_50%_80%,rgba(255,255,255,0.24),transparent_35%)]" />
-                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/80">
+                <div className={`text-[11px] font-semibold uppercase tracking-[0.28em] ${palette.accent}`}>
                   {kpi.label}
                 </div>
-                <div className="mt-2 text-3xl font-semibold text-white">{kpi.value}</div>
+                <div className="mt-2 text-3xl font-semibold text-slate-900">{kpi.value}</div>
                 {kpi.subLabel && (
-                  <div className="mt-1 text-xs font-semibold text-white/80">{kpi.subLabel}</div>
+                  <div className="mt-1 text-xs font-semibold text-slate-600">{kpi.subLabel}</div>
                 )}
               </div>
             );

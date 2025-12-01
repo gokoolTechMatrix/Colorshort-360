@@ -785,6 +785,7 @@ function ServiceCoordinatorDashboard({ profileName }: DashboardProps) {
 }
 
 function SalesCoordinatorDashboard({ profileName }: DashboardProps) {
+  const router = useRouter();
   const deals = [
     { name: "Sri Plastics", value: "₹ 4,80,000", stage: "Negotiation", eta: "Close in 5d", tone: "amber" },
     { name: "North Mills", value: "₹ 3,25,000", stage: "Quote sent", eta: "Follow-up tomorrow", tone: "sky" },
@@ -792,11 +793,11 @@ function SalesCoordinatorDashboard({ profileName }: DashboardProps) {
     { name: "Arora Foods", value: "₹ 1,45,000", stage: "Won", eta: "PO received", tone: "emerald" },
   ];
   const funnel = [
-    { stage: "New", value: 12, gradient: "from-indigo-100 to-indigo-300" },
-    { stage: "Contacted", value: 20, gradient: "from-sky-100 to-sky-300" },
-    { stage: "Quotation Sent", value: 8, gradient: "from-amber-100 to-amber-300" },
-    { stage: "Negotiation", value: 6, gradient: "from-purple-100 to-purple-300" },
-    { stage: "Closed", value: 4, gradient: "from-emerald-100 to-emerald-300" },
+    { stage: "New", value: 12, gradient: "from-indigo-200 via-indigo-300 to-indigo-400" },
+    { stage: "Contacted", value: 20, gradient: "from-sky-200 via-sky-300 to-sky-400" },
+    { stage: "Quotation Sent", value: 8, gradient: "from-amber-200 via-amber-300 to-amber-400" },
+    { stage: "Negotiation", value: 6, gradient: "from-purple-200 via-purple-300 to-purple-400" },
+    { stage: "Closed", value: 4, gradient: "from-emerald-200 via-emerald-300 to-emerald-400" },
   ];
   const actions = ["+ Add Lead", "+ Create Quotation", "+ Assign Lead", "+ Send Follow-up", "+ Schedule Demo", "+ Send Catalog"];
   const tasks = [
@@ -834,7 +835,10 @@ function SalesCoordinatorDashboard({ profileName }: DashboardProps) {
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button className="rounded-2xl bg-white px-4 py-2 text-indigo-700 transition hover:-translate-y-[1px] hover:shadow-sm">
+          <button
+            className="rounded-2xl bg-white px-4 py-2 text-indigo-700 transition hover:-translate-y-[1px] hover:shadow-sm"
+            onClick={() => router.push("/dashboard/sales-co-ordinator/add-lead")}
+          >
             + Add lead
           </button>
           <button className="rounded-2xl border border-white/60 px-4 py-2 text-white transition hover:-translate-y-[1px] hover:bg-white/15">
@@ -856,14 +860,10 @@ function SalesCoordinatorDashboard({ profileName }: DashboardProps) {
           {funnel.map((item) => (
             <div
               key={item.stage}
-              className="rounded-2xl border border-white/70 bg-white/90 p-4 text-center shadow-sm shadow-indigo-50 transition hover:-translate-y-[2px] hover:shadow-lg"
+              className={`rounded-2xl border border-white/70 bg-gradient-to-br ${item.gradient} p-4 text-center text-slate-900 shadow-md shadow-indigo-100 transition hover:-translate-y-[2px] hover:shadow-xl`}
             >
-              <div
-                className={`mx-auto mb-2 h-16 w-16 rounded-2xl bg-gradient-to-br ${item.gradient} p-5 text-xl font-semibold text-slate-800 shadow-inner shadow-white`}
-              >
-                {item.value}
-              </div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              <div className="text-3xl font-semibold">{item.value}</div>
+              <p className="mt-2 text-xs uppercase tracking-[0.3em] text-slate-800">
                 {item.stage}
               </p>
             </div>
