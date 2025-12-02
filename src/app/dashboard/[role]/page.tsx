@@ -26,6 +26,10 @@ const dashboards: Record<string, DashboardConfig> = {
     title: "Store Incharge Dashboard",
     Component: StoreInchargeDashboard,
   },
+  "zonal-manager": {
+    title: "Zonal Manager Dashboard",
+    Component: ZonalManagerDashboard,
+  },
   "purchase-manager": {
     title: "Purchase Manager Dashboard",
     Component: PurchaseManagerDashboard,
@@ -89,6 +93,7 @@ export default function RoleDashboardPage() {
     "service-co-ordinator",
     "service-executive",
     "service-engineer",
+    "zonal-manager",
   ]);
 
   useEffect(() => {
@@ -372,6 +377,228 @@ function QuickActions({ actions }: { actions: string[] }) {
           {action}
         </button>
       ))}
+    </div>
+  );
+}
+
+function ZonalManagerDashboard({ profileName }: DashboardProps) {
+  const kpis = [
+    { label: "Total Leads in Zone", value: "1,280", subLabel: "+5.3% vs last week" },
+    { label: "New Leads This Week", value: "112", subLabel: "+18 new leads since yesterday" },
+    { label: "Pending Approvals", value: "34", subLabel: "Quotation approvals pending" },
+    { label: "Hot Leads", value: "76", subLabel: "Actively moving leads" },
+  ];
+
+  const zoneSnapshot = [
+    { label: "Leads Assigned Today", value: "54", delta: "+14 vs yesterday" },
+    { label: "Follow-ups Due Today", value: "89", delta: "-12 vs yesterday" },
+    { label: "Conversions Today", value: "7", delta: "+2 since yesterday" },
+    { label: "Escalations Raised", value: "2", delta: "Zone-wide issues" },
+  ];
+
+  const aging = [
+    { label: "0-7 days", value: "420 Leads", percent: 72, tone: "emerald" },
+    { label: "8-15 days", value: "240 Leads", percent: 56, tone: "sky" },
+    { label: "16-30 days", value: "140 Leads", percent: 38, tone: "amber" },
+    { label: "30+ days", value: "80 Leads", percent: 22, tone: "rose" },
+  ];
+
+  const executives = [
+    { name: "Ananya (South)", closed: "78 Leads Closed", fill: 82, tone: "emerald" },
+    { name: "Rohan (West)", closed: "62 Leads Closed", fill: 68, tone: "sky" },
+    { name: "Meera (North)", closed: "38 Leads Closed", fill: 46, tone: "amber" },
+    { name: "Arjun (East)", closed: "24 Leads Closed", fill: 34, tone: "indigo" },
+  ];
+
+  const followUps = [
+    { label: "Pending Follow-ups", value: "182", tone: "indigo" },
+    { label: "High Priority (Today)", value: "36", tone: "amber" },
+    { label: "Overdue Follow-ups", value: "54", tone: "rose" },
+    { label: "Completed Today", value: "89", tone: "emerald" },
+  ];
+
+  const pendingTasks = [
+    "Approve 14 quotations from executives",
+    "Reassign leads for inactive executives",
+    "Review escalated customer complaints",
+    "Validate special commodity leads",
+    "Audit overdue follow-ups",
+  ];
+
+  const quickActions = ["+ New Lead", "Reassign Leads", "View Special Leads", "Export Zone Report"];
+
+  const toneMap: Record<string, string> = {
+    emerald: "from-emerald-400 to-emerald-600",
+    sky: "from-sky-400 to-blue-500",
+    amber: "from-amber-400 to-amber-500",
+    rose: "from-rose-400 to-rose-500",
+    indigo: "from-indigo-400 to-indigo-600",
+  };
+
+  return (
+    <div className="space-y-6 pb-8">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1da1f2] via-[#0fd1c5] to-[#14dfbd] p-6 text-white shadow-[0_28px_90px_rgba(13,161,242,0.32)]">
+        <div className="pointer-events-none absolute -left-10 -top-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-6 bottom-6 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+        <div className="pointer-events-none absolute left-1/3 top-4 h-24 w-24 rounded-full bg-white/15 blur-2xl" />
+
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.35em] text-white/80">
+              Zonal Manager Dashboard
+            </p>
+            <h2 className="text-3xl font-semibold">
+              Hello {profileName}, your zone performance at a glance.
+            </h2>
+            <p className="max-w-2xl text-sm text-white/80">
+              Track approvals, freshness of the funnel, and executive throughput across your region.
+            </p>
+            <div className="flex flex-wrap gap-3 text-xs font-semibold">
+              <span className="rounded-full bg-white/15 px-3 py-1.5 backdrop-blur">South & West zones</span>
+              <span className="rounded-full bg-white/15 px-3 py-1.5 backdrop-blur">Live escalations: 2</span>
+              <span className="rounded-full bg-white/15 px-3 py-1.5 backdrop-blur">Hot leads: 76</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-sm font-semibold">
+            <button className="rounded-full border border-white/70 bg-white px-4 py-2 text-cyan-700 shadow-sm transition hover:-translate-y-[1px] hover:shadow-lg">
+              + Assign Leads
+            </button>
+            <button className="rounded-full border border-white/70 px-4 py-2 text-white transition hover:bg-white/15">
+              View Approvals
+            </button>
+            <button className="rounded-full border border-white/70 px-4 py-2 text-white transition hover:bg-white/15">
+              Export Zone Report
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <KpiGrid
+        palette={[
+          "from-[#b6dcff] via-[#8ec2ff] to-[#5aa5ff]",
+          "from-[#ffd3e4] via-[#ff9fc7] to-[#ff74ac]",
+          "from-[#ffe7b8] via-[#ffd17a] to-[#ffb347]",
+          "from-[#bff7e0] via-[#78e8c2] to-[#38dba5]",
+        ]}
+        items={kpis}
+      />
+
+      <Section title="Zone snapshot" subtitle="Today in your zone" variant="pastel">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {zoneSnapshot.map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-indigo-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+            >
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-500">{item.label}</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-900">{item.value}</p>
+              <p className="text-xs font-semibold text-slate-500">{item.delta}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Lead aging" subtitle="Pipeline freshness by bucket">
+        <div className="grid gap-3">
+          {aging.map((bucket) => (
+            <div
+              key={bucket.label}
+              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100"
+            >
+              <div className="flex items-center justify-between text-sm font-semibold text-slate-700">
+                <span>{bucket.label}</span>
+                <span className="text-xs text-slate-500">{bucket.value}</span>
+              </div>
+              <div className="mt-3 h-3 rounded-full bg-slate-100">
+                <div
+                  className={`h-full rounded-full bg-gradient-to-r ${toneMap[bucket.tone]}`}
+                  style={{ width: `${bucket.percent}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Executive performance" subtitle="Top executives and closures">
+        <div className="space-y-3">
+          {executives.map((exec) => (
+            <div
+              key={exec.name}
+              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100"
+            >
+              <div className="flex items-center justify-between text-sm font-semibold text-slate-800">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+                  <span>{exec.name}</span>
+                </div>
+                <button className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-200">
+                  View
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">{exec.closed}</p>
+              <div className="mt-3 h-3 rounded-full bg-slate-100">
+                <div
+                  className={`h-full rounded-full bg-gradient-to-r ${toneMap[exec.tone]}`}
+                  style={{ width: `${exec.fill}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Follow-up summary" subtitle="What needs attention today" variant="pastel">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {followUps.map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 shadow-sm shadow-indigo-100"
+            >
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-500">{item.label}</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-900">{item.value}</p>
+              <div
+                className={`mt-2 h-1.5 rounded-full bg-gradient-to-r ${toneMap[item.tone]}`}
+                style={{ width: "100%" }}
+              />
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Pending tasks" subtitle="Action queue">
+        <div className="grid gap-3 lg:grid-cols-2">
+          {pendingTasks.map((task) => (
+            <div
+              key={task}
+              className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-100"
+            >
+              <div className="flex items-center gap-2">
+                <span className="grid h-7 w-7 place-items-center rounded-full bg-indigo-50 text-indigo-600 shadow-inner">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  >
+                    <path d="m5 13 4 4L19 7" />
+                  </svg>
+                </span>
+                <span>{task}</span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-500">Action</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Quick actions" subtitle="Move faster" variant="pastel">
+        <div className="rounded-3xl border border-cyan-100 bg-gradient-to-r from-[#e0f4ff] via-[#e0fff7] to-[#f3fff0] p-4 shadow-sm shadow-cyan-100">
+          <QuickActions actions={quickActions} />
+        </div>
+      </Section>
     </div>
   );
 }

@@ -668,11 +668,11 @@ export default function LeadManagementPage() {
       />
 
       <main className="flex-1 px-6 py-8">
-        <header className="relative mb-6 overflow-hidden rounded-[32px] bg-linear-to-br from-[#0ea5e9] via-[#2563eb] to-[#7c3aed] p-6 text-white shadow-xl shadow-cyan-200/60">
+        <header className="relative mb-6 overflow-hidden rounded-[32px] bg-linear-to-br from-[#06b6ff] via-[#0f7bf5] to-[#6b3ff0] p-6 text-white shadow-xl shadow-[#36bdf8]/60">
           <div className="pointer-events-none absolute inset-0 opacity-70">
-            <div className="absolute -left-10 -top-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
-            <div className="absolute -right-10 bottom-0 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-            <div className="absolute left-1/3 top-4 h-28 w-28 rounded-full bg-cyan-300/20 blur-2xl" />
+            <div className="absolute -left-10 -top-16 h-48 w-48 rounded-full bg-[#33c7ff]/25 blur-3xl" />
+            <div className="absolute -right-10 bottom-0 h-40 w-40 rounded-full bg-[#3b7bff]/20 blur-3xl" />
+            <div className="absolute left-1/3 top-4 h-28 w-28 rounded-full bg-[#6b3ff0]/25 blur-2xl" />
           </div>
           <div className="relative flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-2">
@@ -723,19 +723,19 @@ export default function LeadManagementPage() {
                 Refresh
               </button>
               {caps.canAssign && (
-                <button className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50">
+                <button className="rounded-full border border-white/70 bg-white px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-800">
                   Approval queue
                 </button>
               )}
               {caps.canAssign && (
-                <button className="rounded-full border border-white/40 bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25">
+                <button className="rounded-full border border-white/70 bg-white px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-800">
                   Bulk reassign
                 </button>
               )}
               {caps.canCreate && (
                 <button
                   onClick={handleNewLead}
-                  className="rounded-full border border-white/40 bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25"
+                  className="rounded-full border border-white/70 bg-white px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-800"
                 >
                   + New Lead
                 </button>

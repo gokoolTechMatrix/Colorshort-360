@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServiceRoleClient } from "@/lib/supabase/server";
 
 const TABLE = "lead";
+const COMPANY_TABLE = "company";
 
 const stageFromStatus = (status?: string | null) => {
   const normalized = (status ?? "").toLowerCase();
@@ -61,7 +62,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
-    const company_id = Number(payload.company_id ?? 1);
+    const requestedCompanyId = Number(payload.company_id);
     const lead_source_ = (payload.lead_source_ as string | undefined)?.trim() || null;
     const customer_name = (payload.customer_name as string | undefined)?.trim() || null;
     const contact_person = (payload.contact_person as string | undefined)?.trim() || null;
@@ -73,13 +74,6 @@ export async function POST(request: Request) {
     const gst = (payload.gst as string | undefined)?.trim() || null;
     const hot_cold_flag = (payload.hot_cold_flag as string | undefined)?.trim() || null;
     const next_followup_on = payload.next_followup_on as string | null | undefined;
-
-    if (!company_id || Number.isNaN(company_id)) {
-      return NextResponse.json(
-        { message: "company_id is required and must be a number." },
-        { status: 400 },
-      );
-    }
 
     if (!customer_name) {
       return NextResponse.json(
@@ -96,6 +90,79 @@ export async function POST(request: Request) {
     }
 
     const supabase = getServiceRoleClient();
+
+    let company_id = !Number.isNaN(requestedCompanyId) && requestedCompanyId > 0 ? requestedCompanyId : null;
+
+    // If a company_id is supplied, ensure it exists; otherwise, fall back to the first available company.
+    if (company_id) {
+      const { data: existingCompany, error: companyLookupError } = await supabase
+        .from(COMPANY_TABLE)
+        .select("id")
+        .eq("id", company_id)
+        .maybeSingle();
+
+      if (companyLookupError) {
+        return NextResponse.json(
+          { message: companyLookupError.message ?? "Unable to resolve company for lead" },
+          { status: 500 },
+        );
+      }
+
+      if (!existingCompany?.id) {
+        company_id = null;
+      }
+    }
+
+    if (!company_id) {
+      const { data: companyRow, error: companyError } = await supabase
+        .from(COMPANY_TABLE)
+        .select("id")
+        .order("id", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (companyError) {
+        return NextResponse.json(
+          { message: companyError.message ?? "Unable to resolve company for lead" },
+          { status: 500 },
+        );
+      }
+
+      company_id = companyRow?.id ?? null;
+    }
+
+    if (!company_id) {
+      // Auto-provision a minimal company so lead capture never blocks when the table is empty.
+      const fallbackName = customer_name || contact_person || "Default Company";
+      const fallbackCode = `AUTO-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const { data: createdCompany, error: createCompanyError } = await supabase
+        .from(COMPANY_TABLE)
+        .insert({
+          name: fallbackName.slice(0, 255),
+          legal_name: fallbackName.slice(0, 255),
+          code: fallbackCode.slice(0, 50),
+          is_active: true,
+        })
+        .select("id")
+        .maybeSingle();
+
+      if (createCompanyError) {
+        return NextResponse.json(
+          { message: createCompanyError.message ?? "Unable to create fallback company" },
+          { status: 500 },
+        );
+      }
+
+      company_id = createdCompany?.id ?? null;
+    }
+
+    if (!company_id) {
+      return NextResponse.json(
+        { message: "No valid company found. Please create a company first." },
+        { status: 400 },
+      );
+    }
+
     const { error, data } = await supabase
       .from(TABLE)
       .insert({
