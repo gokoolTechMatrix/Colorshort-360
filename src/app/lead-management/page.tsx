@@ -461,7 +461,8 @@ export default function LeadManagementPage() {
   if (
     !profileRole ||
     (!allowedRoles.has(profileRole) && profileRole !== "super_admin") ||
-    caps.deny
+    caps.deny ||
+    (profileRole !== "sales-manager" && profileRole !== "super_admin")
   ) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-semibold text-rose-500">
@@ -560,6 +561,14 @@ export default function LeadManagementPage() {
     return !Number.isNaN(nextDate.getTime()) && nextDate.getTime() < now;
   });
   const hotLeads = filteredLeads.filter((lead) => lead.temperature === "Hot");
+  const profileDisplayRole = (profileRole ?? "manager").replace(/-/g, " ");
+  const profileInitials = profileName
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   const kpis = [
     { label: "Team Pipeline", value: "Rs 3.8 Cr", subLabel: `${filteredLeads.length} active deals` },
@@ -589,27 +598,64 @@ export default function LeadManagementPage() {
       />
 
       <main className="flex-1 px-6 py-8">
-        <header className="relative mb-6 overflow-hidden rounded-[32px] bg-linear-to-br from-[#0ea5e9] via-[#2563eb] to-[#7c3aed] p-6 text-white shadow-xl shadow-cyan-200/60">
+        <header className="relative mb-6 overflow-hidden rounded-[32px] bg-linear-to-br from-slate-900 via-indigo-800 to-sky-700 p-6 text-white shadow-2xl shadow-indigo-200/60">
           <div className="pointer-events-none absolute inset-0 opacity-70">
             <div className="absolute -left-10 -top-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
             <div className="absolute -right-10 bottom-0 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
             <div className="absolute left-1/3 top-4 h-28 w-28 rounded-full bg-cyan-300/20 blur-2xl" />
           </div>
-          <div className="relative flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-2">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-sm backdrop-blur">
-                Lead management
-                <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-cyan-700">
-                  {profileRole.replace(/-/g, " ")}
+          <div className="relative flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  className="group flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:bg-white/20"
+                  onClick={() => router.back()}
+                  aria-label="Go back"
+                >
+                  <svg
+                    className="h-4 w-4 text-white transition group-hover:-translate-x-[1px]"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  >
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                  Back
+                </button>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/70">
+                    Manager dashboard
+                  </p>
+                  <h1 className="text-3xl font-semibold leading-tight text-white">
+                    Pipeline overview, approvals, and team performance
+                  </h1>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="hidden rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-white shadow-sm backdrop-blur sm:inline-flex">
+                  Lead management
                 </span>
-              </span>
-              <h1 className="text-3xl font-semibold leading-tight text-white">
-                Sales Manager lead control room
-              </h1>
+                <div className="flex items-center gap-3 rounded-2xl bg-white/10 px-3 py-2 shadow-lg shadow-black/10 ring-1 ring-white/15 backdrop-blur">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-bold text-slate-900">
+                    {profileInitials || "TM"}
+                  </div>
+                  <div className="leading-tight">
+                    <p className="text-sm font-semibold text-white">{profileName || "Team Member"}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">
+                      {profileDisplayRole.toUpperCase()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="max-w-2xl text-sm text-white/80">
                 Approve quotes, reassign stuck deals, and keep the funnel healthy with faster follow-ups.
               </p>
-              <div className="flex flex-wrap gap-3 text-xs font-semibold">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
                 <span className="rounded-full bg-white/15 px-3 py-1.5 text-white backdrop-blur">
                   Pending approvals: {pendingApprovals.length}
                 </span>
@@ -621,41 +667,44 @@ export default function LeadManagementPage() {
                 </span>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                className="flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/25 disabled:opacity-60"
-                onClick={handleRefreshLeads}
-                aria-label="Refresh leads"
-                disabled={isRefreshingLeads}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className={`h-4 w-4 text-white ${isRefreshingLeads ? "animate-spin" : ""}`}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
+
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/10 px-3 py-2 text-sm shadow-inner shadow-white/10 backdrop-blur">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm shadow-indigo-200 transition hover:-translate-y-[1px] hover:shadow-lg disabled:opacity-60"
+                  onClick={handleRefreshLeads}
+                  aria-label="Refresh leads"
+                  disabled={isRefreshingLeads}
                 >
-                  <path d="M4 4v6h6M20 20v-6h-6" />
-                  <path d="M5 13a7 7 0 0 0 12 3M19 11A7 7 0 0 0 7.05 8.05" />
-                </svg>
-                Refresh
-              </button>
-              {caps.canAssign && (
-                <button className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50">
-                  Approval queue
+                  <svg
+                    viewBox="0 0 24 24"
+                    className={`h-4 w-4 text-indigo-700 ${isRefreshingLeads ? "animate-spin" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  >
+                    <path d="M4 4v6h6M20 20v-6h-6" />
+                    <path d="M5 13a7 7 0 0 0 12 3M19 11A7 7 0 0 0 7.05 8.05" />
+                  </svg>
+                  Refresh
                 </button>
-              )}
-              {caps.canAssign && (
-                <button className="rounded-full border border-white/40 bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25">
-                  Bulk reassign
-                </button>
-              )}
-              {caps.canCreate && (
-                <button className="rounded-full border border-white/40 bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25">
-                  + New Lead
-                </button>
-              )}
+                {caps.canAssign && (
+                  <button className="rounded-full bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition hover:-translate-y-[1px] hover:bg-indigo-400">
+                    Approval queue
+                  </button>
+                )}
+                {caps.canAssign && (
+                  <button className="rounded-full border border-white/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-[1px] hover:bg-white/20">
+                    Bulk reassign
+                  </button>
+                )}
+                {caps.canCreate && (
+                  <button className="rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm shadow-emerald-200 transition hover:-translate-y-[1px] hover:bg-emerald-300">
+                    + New Lead
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </header>

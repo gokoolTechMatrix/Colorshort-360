@@ -123,6 +123,11 @@ const fallbackData = {
   },
 };
 
+type PrimaryKpiRow = { label: string; value: number | string; detail: string; trend: string };
+type HrPayload = Omit<typeof fallbackData, "kpis"> & {
+  kpis: { primary: PrimaryKpiRow[]; secondary: typeof fallbackData.kpis.secondary };
+};
+
 const safeLoad = async <T,>(table: string, transform: (rows: T[]) => void) => {
   const supabase = getServiceRoleClient();
   const { data, error } = await supabase.from(table).select("*");
@@ -138,17 +143,21 @@ const safeLoad = async <T,>(table: string, transform: (rows: T[]) => void) => {
 };
 
 export async function GET() {
-  const payload = structuredClone(fallbackData);
+  const payload = structuredClone(fallbackData) as HrPayload;
   try {
     await safeLoad<{ label: string; value: number | string; detail?: string; trend?: string }>(
       "hr_kpis",
       (rows) => {
-        payload.kpis.primary = rows.filter((r) => r.detail).map((r) => ({
-          label: r.label,
-          value: r.value,
-          detail: r.detail ?? "",
-          trend: r.trend ?? "",
-        }));
+        payload.kpis.primary = rows
+          .filter((r) => r.detail)
+          .map(
+            (r): PrimaryKpiRow => ({
+              label: r.label,
+              value: typeof r.value === "number" ? r.value : String(r.value),
+              detail: r.detail ?? "",
+              trend: r.trend ?? "",
+            }),
+          );
       },
     );
 

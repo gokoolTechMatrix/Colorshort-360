@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import Link from "next/link";

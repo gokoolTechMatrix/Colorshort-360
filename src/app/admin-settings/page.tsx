@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -68,14 +69,12 @@ export default function AdminSettingsPage() {
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [settings, setSettings] = useState<CompanySettings>(EMPTY_SETTINGS);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [settingsDirty, setSettingsDirty] = useState(false);
   const [isEditingSettings, setIsEditingSettings] = useState(true);
-  const [justSaved, setJustSaved] = useState(false);
   const [isEditingTeam] = useState(true);
+  const [justSaved, setJustSaved] = useState(false);
   const [justSavedTeam, setJustSavedTeam] = useState(false);
   const [isSavingTeamAll, setIsSavingTeamAll] = useState(false);
   const [isRefreshingTeam, setIsRefreshingTeam] = useState(false);
-  const [editingRows, setEditingRows] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState(false);
   const [companyLogo, setCompanyLogo] = useState("/image.png");
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
@@ -367,7 +366,7 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const logoSrc = settings.logo_url || "/image.png";
+  const logoSrc = settings.logo_url || companyLogo;
 
 
   if (isCheckingAuth) {

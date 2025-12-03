@@ -51,6 +51,7 @@ export default function SalesCoordinatorAddLeadPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [profileName, setProfileName] = useState("Team Member");
+  void profileName;
   const [collapsed, setCollapsed] = useState(false);
   const [companyLogo, setCompanyLogo] = useState("/image.png");
   const [isSigningOut, setIsSigningOut] = useState(false);

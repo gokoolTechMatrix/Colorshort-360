@@ -9,7 +9,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Suppress auth errors in console by handling them gracefully
         const originalConsoleError = console.error;
-        console.error = (...args: any[]) => {
+        console.error = (...args: unknown[]) => {
             // Filter out Supabase auth errors from console
             const message = args[0]?.toString() || "";
             if (

@@ -1,9 +1,10 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { useRouter } from "next/navigation";
 import type { ReactElement } from "react";
 
-type SidebarLink = {
+export type SidebarLink = {
   label: string;
   href: string;
   icon: ReactElement;
@@ -157,6 +158,8 @@ export type DashboardSidebarProps = {
   showSettings?: boolean;
   showUserCreation?: boolean;
   showLeadManagement?: boolean;
+  linksOverride?: SidebarLink[];
+  onLinkClick?: (href: string) => void;
 };
 
 export function DashboardSidebar({
@@ -169,15 +172,19 @@ export function DashboardSidebar({
   showSettings = false,
   showUserCreation = false,
   showLeadManagement = true,
+  linksOverride,
+  onLinkClick,
 }: DashboardSidebarProps) {
   const router = useRouter();
 
-  const links = baseLinks.filter((link) => {
-    if (link.label === "Settings") return showSettings;
-    if (link.label === "User Creation") return showUserCreation;
-    if (link.label === "Lead Management") return showLeadManagement;
-    return true;
-  });
+  const links =
+    linksOverride ??
+    baseLinks.filter((link) => {
+      if (link.label === "Settings") return showSettings;
+      if (link.label === "User Creation") return showUserCreation;
+      if (link.label === "Lead Management") return showLeadManagement;
+      return true;
+    });
 
   return (
     <aside
@@ -219,7 +226,13 @@ export function DashboardSidebar({
               className={`flex items-center gap-3 rounded-xl px-4 py-3 transition hover:bg-slate-100 ${
                 isActive ? "bg-indigo-50 text-indigo-600" : ""
               }`}
-              onClick={() => link.href !== "#" && router.push(link.href)}
+              onClick={() => {
+                if (onLinkClick) {
+                  onLinkClick(link.href);
+                  return;
+                }
+                if (link.href !== "#") router.push(link.href);
+              }}
             >
               <span className="text-slate-400">{link.icon}</span>
               {!collapsed && <span>{link.label}</span>}

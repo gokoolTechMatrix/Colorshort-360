@@ -1,11 +1,11 @@
 "use client";
 
-import { DashboardSidebar } from "@/components/dashboard/sidebar";
+import { DashboardSidebar, SidebarLink } from "@/components/dashboard/sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getRoleFromEmail } from "@/lib/role-map";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, ReactElement } from "react";
+import type { ChangeEvent, FormEvent, ReactElement, ReactNode } from "react";
 
 const SUPER_ADMIN_EMAIL =
   process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() ??
@@ -15,10 +15,110 @@ const slugifyRole = (role?: string | null) =>
   role?.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") ??
   "";
 
-type DashboardProps = { profileName: string };
+type DashboardProps = { profileName: string; roleSlug?: string };
 type DashboardConfig = {
   title: string;
-  Component: (props: DashboardProps) => ReactElement;
+  Component: (props: DashboardProps & { activeTab?: string; onTabChange?: (tab: string) => void }) => ReactElement;
+};
+type SalesManagerTab =
+  | "overview"
+  | "approvals"
+  | "orders"
+  | "leads"
+  | "executives"
+  | "reports";
+type SalesTabIcon = "layout" | "check" | "doc" | "stack" | "user" | "chart";
+type PastelTone = "indigo" | "sky" | "emerald" | "amber" | "violet" | "rose";
+
+const salesManagerTabs: { id: SalesManagerTab; label: string; icon: SalesTabIcon }[] = [
+  { id: "overview", label: "Dashboard overview", icon: "layout" },
+  { id: "approvals", label: "Approvals", icon: "check" },
+  { id: "orders", label: "Order Sheets", icon: "doc" },
+  { id: "leads", label: "Leads", icon: "stack" },
+  { id: "executives", label: "Executives", icon: "user" },
+  { id: "reports", label: "Reports & exports", icon: "chart" },
+];
+
+const renderSalesTabIcon = (icon: SalesTabIcon): ReactElement => {
+  switch (icon) {
+    case "layout":
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z" />
+        </svg>
+      );
+    case "check":
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="m5 12 2 2 4-4" />
+          <path d="M5 5h6M5 19h6" />
+          <path d="M13 5h6M13 19h6" />
+        </svg>
+      );
+    case "doc":
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M7 4h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
+          <path d="M13 4v5h5" />
+        </svg>
+      );
+    case "stack":
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="m12 3 9.5 5.5L12 14 2.5 8.5 12 3z" />
+          <path d="m2.5 15.5 9.5 5.5 9.5-5.5" />
+          <path d="m2.5 12 9.5 5.5 9.5-5.5" />
+        </svg>
+      );
+    case "user":
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <circle cx="12" cy="7" r="4" />
+          <path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
+        </svg>
+      );
+    default:
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M4 19h16" />
+          <path d="m5 17 4-6 4 3 4-8" />
+          <path d="M16 6h4v4" />
+        </svg>
+      );
+  }
+};
+
+const pastelToneStyles: Record<PastelTone, { card: string; badge: string; shadow: string }> = {
+  indigo: {
+    card: "from-indigo-100 via-white to-indigo-200/90 border-indigo-200",
+    badge: "bg-indigo-200 text-indigo-800",
+    shadow: "shadow-[0_14px_36px_rgba(99,102,241,0.16)]",
+  },
+  sky: {
+    card: "from-sky-100 via-white to-sky-200/90 border-sky-200",
+    badge: "bg-sky-200 text-sky-800",
+    shadow: "shadow-[0_14px_36px_rgba(14,165,233,0.16)]",
+  },
+  emerald: {
+    card: "from-emerald-100 via-white to-emerald-200/90 border-emerald-200",
+    badge: "bg-emerald-200 text-emerald-800",
+    shadow: "shadow-[0_14px_36px_rgba(16,185,129,0.18)]",
+  },
+  amber: {
+    card: "from-amber-100 via-white to-amber-200/90 border-amber-200",
+    badge: "bg-amber-200 text-amber-800",
+    shadow: "shadow-[0_14px_36px_rgba(251,191,36,0.18)]",
+  },
+  violet: {
+    card: "from-violet-100 via-white to-violet-200/90 border-violet-200",
+    badge: "bg-violet-200 text-violet-800",
+    shadow: "shadow-[0_14px_36px_rgba(139,92,246,0.16)]",
+  },
+  rose: {
+    card: "from-rose-100 via-white to-rose-200/90 border-rose-200",
+    badge: "bg-rose-200 text-rose-800",
+    shadow: "shadow-[0_14px_36px_rgba(244,63,94,0.14)]",
+  },
 };
 
 const dashboards: Record<string, DashboardConfig> = {
@@ -76,6 +176,7 @@ export default function RoleDashboardPage() {
   const [companyLogo, setCompanyLogo] = useState("/image.png");
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const [salesActiveTab, setSalesActiveTab] = useState<SalesManagerTab>("overview");
   const leadNavRoles = new Set([
     "super_admin",
     "admin",
@@ -176,6 +277,28 @@ export default function RoleDashboardPage() {
       });
   }, []);
 
+  useEffect(() => {
+    if (roleSlug !== "sales-manager") return;
+    const syncFromHash = () => {
+      const hash = window.location.hash.replace("#", "");
+      const matchingTab = salesManagerTabs.find((tab) => tab.id === hash);
+      if (matchingTab) {
+        setSalesActiveTab(matchingTab.id);
+      }
+    };
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, [roleSlug]);
+
+  useEffect(() => {
+    if (roleSlug !== "sales-manager") return;
+    const targetHash = `#${salesActiveTab}`;
+    if (window.location.hash !== targetHash) {
+      window.history.pushState(null, "", targetHash);
+    }
+  }, [roleSlug, salesActiveTab]);
+
   const handleLogout = async () => {
     if (isSigningOut) return;
     setIsSigningOut(true);
@@ -215,6 +338,21 @@ export default function RoleDashboardPage() {
   }
 
   const { Component, title } = config;
+  const isSalesManager = roleSlug === "sales-manager";
+  const salesNavLinks = isSalesManager
+    ? salesManagerTabs.map((tab) => ({
+        label: tab.label,
+        href: `#${tab.id}`,
+        icon: renderSalesTabIcon(tab.icon),
+      }))
+    : undefined;
+  const handleSalesNavClick = (href: string) => {
+    if (!href.startsWith("#")) return;
+    const matchingTab = salesManagerTabs.find((tab) => `#${tab.id}` === href);
+    if (matchingTab) {
+      setSalesActiveTab(matchingTab.id);
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-white via-slate-50 to-indigo-50">
@@ -224,8 +362,10 @@ export default function RoleDashboardPage() {
         companyLogo={companyLogo}
         onLogout={handleLogout}
         isSigningOut={isSigningOut}
-        activeHref="/dashboard"
-        showLeadManagement={leadNavRoles.has(roleSlug ?? "")}
+        activeHref={isSalesManager ? `#${salesActiveTab}` : "/dashboard"}
+        linksOverride={salesNavLinks}
+        onLinkClick={isSalesManager ? handleSalesNavClick : undefined}
+        showLeadManagement={!isSalesManager && leadNavRoles.has(roleSlug ?? "")}
       />
 
       <main className="flex-1 px-6 py-10">
@@ -235,7 +375,16 @@ export default function RoleDashboardPage() {
           </p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-900">{title}</h1>
         </header>
-        <Component profileName={profileName} />
+        <Component
+          profileName={profileName}
+          roleSlug={roleSlug}
+          {...(isSalesManager
+            ? {
+                activeTab: salesActiveTab,
+                onTabChange: (tab: string) => setSalesActiveTab(tab as SalesManagerTab),
+              }
+            : {})}
+        />
       </main>
     </div>
   );
@@ -669,7 +818,7 @@ function ServiceCoordinatorDashboard({ profileName }: DashboardProps) {
 
       <Section title="Live queue">
         <div className="grid gap-3 lg:grid-cols-2">
-          {queue.map((ticket, index) => (
+          {queue.map((ticket) => (
             <div
               key={ticket.ticket}
               className="relative overflow-hidden rounded-2xl border border-slate-100 bg-gradient-to-br from-white via-slate-50 to-white p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
@@ -918,211 +1067,1131 @@ function SalesCoordinatorDashboard({ profileName }: DashboardProps) {
   );
 }
 
-function SalesManagerDashboard({ profileName }: DashboardProps) {
-  const kpis = [
-    { label: "Team Pipeline", value: "Rs 3.8 Cr", subLabel: "12 deals in focus" },
-    { label: "Target Achievement", value: "76%", subLabel: "Tracking monthly quota" },
-    { label: "Win Rate", value: "31%", subLabel: "+3 pts vs last month" },
-    { label: "Follow-ups Due", value: "18", subLabel: "6 overdue today" },
+function SalesManagerDashboard({
+  profileName,
+  roleSlug,
+  activeTab,
+  onTabChange: _onTabChange,
+}: DashboardProps & { activeTab?: string; onTabChange?: (tab: string) => void }) {
+  void _onTabChange;
+  const router = useRouter();
+  const currentTab: SalesManagerTab =
+    salesManagerTabs.find((tab) => tab.id === activeTab) ? (activeTab as SalesManagerTab) : "overview";
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [isLoadingPage, setIsLoadingPage] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [dataRefreshKey, setDataRefreshKey] = useState(0);
+  const [actionLoading, setActionLoading] = useState<"quote" | "order" | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
+  const toastTimer = useRef<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [selectedQuote, setSelectedQuote] = useState<any | null>(null);
+  const [approvedDiscount, setApprovedDiscount] = useState("");
+  const [approvedTenor, setApprovedTenor] = useState("");
+  const [managerComments, setManagerComments] = useState("");
+  const [decision, setDecision] = useState<"approve" | "reject">("approve");
+  const [verifyNote, setVerifyNote] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsLoadingPage(false), 380);
+    return () => {
+      window.clearTimeout(timer);
+      if (toastTimer.current) {
+        clearTimeout(toastTimer.current);
+      }
+    };
+  }, []);
+
+  const triggerToast = (message: string, tone: "success" | "error" = "success") => {
+    if (toastTimer.current) {
+      clearTimeout(toastTimer.current);
+    }
+    setToast({ message, tone });
+    toastTimer.current = window.setTimeout(() => setToast(null), 2000);
+  };
+
+  const simulateNetwork = (duration = 650) =>
+    new Promise<void>((resolve) => {
+      window.setTimeout(resolve, duration);
+    });
+
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = searchTerm.trim();
+    triggerToast(trimmed ? `Filtered by "${trimmed}"` : "Showing all results", "success");
+  };
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setDataRefreshKey((prev) => prev + 1);
+    try {
+      await simulateNetwork(520);
+      triggerToast("Data refreshed", "success");
+    } catch {
+      triggerToast("Refresh failed. Rolled back.", "error");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const pipelineMetrics: { code: string; label: string; value: number; tone: PastelTone }[] = [
+    { code: "N", label: "New", value: 0, tone: "violet" },
+    { code: "V", label: "Validated", value: 2, tone: "sky" },
+    { code: "W", label: "Working", value: 8, tone: "indigo" },
+    { code: "Q", label: "Quotation Sent", value: 1, tone: "amber" },
+    { code: "Q", label: "Quotation Approved", value: 0, tone: "emerald" },
+    { code: "O", label: "Ordered", value: 0, tone: "rose" },
   ];
-  const leaderboard = [
-    { name: "Anita Rao", pipeline: "Rs 92L", won: 6, followups: 3, score: 93, tone: "emerald" },
-    { name: "Naveen Kumar", pipeline: "Rs 81L", won: 5, followups: 4, score: 88, tone: "indigo" },
-    { name: "Farah Iqbal", pipeline: "Rs 74L", won: 4, followups: 2, score: 84, tone: "amber" },
-    { name: "Rahul Menon", pipeline: "Rs 68L", won: 3, followups: 5, score: 79, tone: "sky" },
+
+    const orderSheets = [
+    {
+      id: "ecabb808",
+      lead: "Ayesha Cody",
+      model: "CS-10000",
+      qty: 1,
+      total: "Rs 12,00,000",
+      by: "Mani",
+      on: "--",
+      unitPrice: "Rs 12,00,000",
+      discountValue: "Rs 0",
+      paymentMethod: "EMI",
+      deliveryTimeline: "2 weeks",
+      shipmentType: "Standard",
+      customerName: "Ayesha Cody",
+      gstNumber: "--",
+      billingAddress: "--",
+      shippingAddress: "--",
+      specialRequest: "--",
+      termsNotes: "--",
+      status: "submitted",
+    },
+    {
+      id: "e8b382bc",
+      lead: "Qube",
+      model: "CS-10000",
+      qty: 1,
+      total: "Rs 11,70,007",
+      by: "Mani",
+      on: "11/17/2025, 3:39:24 PM",
+      unitPrice: "Rs 11,70,007",
+      discountValue: "Rs 0",
+      paymentMethod: "EMI",
+      deliveryTimeline: "1 week",
+      shipmentType: "Road",
+      customerName: "Qube",
+      gstNumber: "29AAACQ1234A1Z5",
+      billingAddress: "Bangalore, KA",
+      shippingAddress: "Chennai, TN",
+      specialRequest: "Priority install",
+      termsNotes: "Standard warranty applies",
+      status: "pending",
+    },
+    {
+      id: "c584b850",
+      lead: "Yodas",
+      model: "CS-5000",
+      qty: 1,
+      total: "Rs 8,35,000",
+      by: "Mani",
+      on: "11/17/2025, 4:04:35 PM",
+      unitPrice: "Rs 8,35,000",
+      discountValue: "Rs 0",
+      paymentMethod: "EMI",
+      deliveryTimeline: "3 weeks",
+      shipmentType: "Air",
+      customerName: "Yodas",
+      gstNumber: "27AAACY7890D1Z2",
+      billingAddress: "Hyderabad, TS",
+      shippingAddress: "Hyderabad, TS",
+      specialRequest: "Install during off-hours",
+      termsNotes: "Include operator training",
+      status: "submitted",
+    },
+    {
+      id: "035bf81f",
+      lead: "Matrix Smart",
+      model: "CS-10000",
+      qty: 1,
+      total: "Rs 11,80,000",
+      by: "Mani",
+      on: "11/22/2025, 1:06:54 PM",
+      unitPrice: "Rs 11,80,000",
+      discountValue: "Rs 0",
+      paymentMethod: "EMI",
+      deliveryTimeline: "10 days",
+      shipmentType: "Road",
+      customerName: "Matrix Smart",
+      gstNumber: "33AAACM5555J1Z7",
+      billingAddress: "Coimbatore, TN",
+      shippingAddress: "Coimbatore, TN",
+      specialRequest: "--",
+      termsNotes: "Final confirmation needed",
+      status: "submitted",
+    },
   ];
-  const pipelineStages = [
-    { stage: "New Leads", count: 64, rate: "100%", fill: 100, color: "from-indigo-200 to-indigo-500" },
-    { stage: "Contacted", count: 52, rate: "81%", fill: 81, color: "from-sky-200 to-sky-500" },
-    { stage: "Quote Sent", count: 28, rate: "54%", fill: 54, color: "from-amber-200 to-amber-500" },
-    { stage: "Negotiation", count: 16, rate: "29%", fill: 29, color: "from-purple-200 to-purple-500" },
-    { stage: "Won", count: 9, rate: "14%", fill: 14, color: "from-emerald-200 to-emerald-500" },
+
+const pendingApprovals = [
+    {
+      id: "Q-2025-666",
+      lead: "ABC Company",
+      model: "037e924c-02a5-4ea6-90df-471861a25e96",
+      discount: "?",
+      payment: "EMI",
+      created: "11/21/2025, 1:00:17 PM",
+      basePrice: "Rs 4,00,000",
+      finalPrice: "Rs 0",
+      requestedDiscount: "Rs 4,00,000",
+      emiTenor: 3,
+      validityDate: "2025-11-21",
+      installationPayer: "Customer",
+      leadPhone: "9042160564",
+      leadSource: "Referral",
+      leadPriority: "Hot",
+    },
+    {
+      id: "e1b874ae-0175-4cbf-92a7-611e70a57b64",
+      lead: "ABC Company",
+      model: "037e924c-02a5-4ea6-90df-471861a25e96",
+      discount: "?",
+      payment: "EMI",
+      created: "11/21/2025, 1:00:40 PM",
+      basePrice: "Rs 3,96,000",
+      finalPrice: "Rs 3,96,000",
+      requestedDiscount: "Rs 4,000",
+      emiTenor: 3,
+      validityDate: "2025-11-21",
+      installationPayer: "Customer",
+      leadPhone: "9042160564",
+      leadSource: "Referral",
+      leadPriority: "Hot",
+    },
+    {
+      id: "Q-2025-711",
+      lead: "ABC Company",
+      model: "037e924c-02a5-4ea6-90df-471861a25e96",
+      discount: "?",
+      payment: "EMI",
+      created: "11/21/2025, 1:01:42 PM",
+      basePrice: "Rs 3,98,000",
+      finalPrice: "Rs 3,98,000",
+      requestedDiscount: "Rs 2,000",
+      emiTenor: 3,
+      validityDate: "2025-11-21",
+      installationPayer: "Customer",
+      leadPhone: "9042160564",
+      leadSource: "Referral",
+      leadPriority: "Hot",
+    },
   ];
-  const regions = [
-    { region: "South", value: "Rs 1.4 Cr", growth: "+12%", fill: 82 },
-    { region: "West", value: "Rs 98L", growth: "+6%", fill: 68 },
-    { region: "North", value: "Rs 72L", growth: "-4%", fill: 54 },
-    { region: "East", value: "Rs 48L", growth: "+3%", fill: 46 },
+
+const approvalsQueue = pendingApprovals.map((item) => ({
+    ...item,
+    requestedBy: "Mani",
+    emi: 3,
+  }));
+
+  const recentlyApproved = [
+    { id: "Q-2025-643", lead: "Matrix", model: "5560598b-27e4-47a0-b7bb-a7220c54b0ef", price: "Rs 11,70,000", requestedBy: "Mani", approvedOn: "11/15/2025, 12:22:21 PM" },
+    { id: "c76db495-3a20-4481-85f8-6287aaa90179", lead: "NS", model: "037e924c-02a5-4ea6-90df-471861a25e96", price: "Rs 3,80,004", requestedBy: "Mani", approvedOn: "11/14/2025, 8:19:24 PM" },
+    { id: "Q-2025-874", lead: "NS", model: "037e924c-02a5-4ea6-90df-471861a25e96", price: "Rs 3,80,004", requestedBy: "Mani", approvedOn: "11/14/2025, 8:19:19 PM" },
+    { id: "Q-2025-181", lead: "NS", model: "037e924c-02a5-4ea6-90df-471861a25e96", price: "Rs 4,00,000", requestedBy: "Mani", approvedOn: "11/14/2025, 12:34:10 AM" },
+    { id: "Q-2025-886", lead: "NS", model: "037e924c-02a5-4ea6-90df-471861a25e96", price: "Rs 3,90,000", requestedBy: "Mani", approvedOn: "11/14/2025, 12:26:38 AM" },
+    { id: "Q-2025-969", lead: "NS", model: "037e924c-02a5-4ea6-90df-471861a25e96", price: "Rs 3,50,000", requestedBy: "Mani", approvedOn: "11/13/2025, 5:49:10 PM" },
   ];
-  const alerts = [
-    "3 deals stuck in negotiation for 7+ days (seek pricing support).",
-    "6 follow-ups overdue today (reassign to available executive).",
-    "North region at 68% of target (trigger offer campaign).",
-    "2 discount approvals pending manager review.",
+
+  const executives = [
+    { name: "Mani", leads: 11, quotes: 3, conversion: "18%", status: "Open" },
+    { name: "Gokul", leads: 7, quotes: 2, conversion: "22%", status: "Open" },
   ];
-  const quickActions = [
-    "+ Assign leads",
-    "+ Approve discount",
-    "+ Broadcast update",
-    "+ Export pipeline",
-    "+ Schedule review",
-    "+ Add offer",
+
+  const leads = [
+    { client: "Matrix Smart", lead: "Matrix Smart", stage: "Assigned", priority: "Hot", executive: "Mani", source: "Website", created: "11/22/2025" },
+    { client: "ABC Company", lead: "ABC Company", stage: "Assigned", priority: "Hot", executive: "Mani", source: "Referral", created: "11/18/2025" },
+    { client: "Ayesha Cody", lead: "Ayesha Cody", stage: "Installed", priority: "Warm", executive: "Mani", source: "IndiaMart", created: "11/17/2025" },
+    { client: "Qube", lead: "Qube", stage: "Won", priority: "Warm", executive: "Mani", source: "IndiaMart", created: "11/15/2025" },
+    { client: "Matrix", lead: "Matrix", stage: "Quotation Sent", priority: "Hot", executive: "Mani", source: "IndiaMart", created: "11/15/2025" },
   ];
+
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const matchesSearch = (...values: (string | number | undefined | null)[]) => {
+    if (!normalizedSearch) return true;
+    return values.some((value) =>
+      (value ?? "")
+        .toString()
+        .toLowerCase()
+        .includes(normalizedSearch),
+    );
+  };
+
+  const filteredOrderSheets = orderSheets.filter((order) =>
+    matchesSearch(order.id, order.lead, order.model, order.status, order.by, order.customerName),
+  );
+  const filteredApprovals = approvalsQueue.filter((item) =>
+    matchesSearch(item.id, item.lead, item.model, item.requestedBy, item.payment, item.discount),
+  );
+  const filteredLeads = leads.filter((lead) =>
+    matchesSearch(lead.client, lead.lead, lead.stage, lead.executive, lead.priority, lead.source),
+  );
+  const filteredRecentApprovals = recentlyApproved.filter((item) =>
+    matchesSearch(item.id, item.lead, item.model, item.requestedBy, item.approvedOn),
+  );
+
+  const reportCards = [
+    { label: "Monthly target", value: "76% to goal", tone: "indigo" },
+    { label: "Average conversion", value: "18%", tone: "emerald" },
+    { label: "Avg. response time", value: "1.8 hours", tone: "sky" },
+    { label: "Discount approvals", value: "2 pending", tone: "amber" },
+  ];
+
+  const orderColumns = [
+    { key: "id", label: "Order Sheet" },
+    { key: "lead", label: "Lead" },
+    { key: "model", label: "Model" },
+    { key: "qty", label: "Qty" },
+    { key: "total", label: "Total" },
+    { key: "by", label: "Submitted By" },
+    { key: "on", label: "Submitted On" },
+    { key: "action", label: "Action", align: "right" },
+  ];
+  const approvalColumns = [
+    { key: "id", label: "Quotation ID" },
+    { key: "lead", label: "Lead" },
+    { key: "requestedBy", label: "Requested By" },
+    { key: "model", label: "Model" },
+    { key: "discount", label: "Discount %" },
+    { key: "payment", label: "Payment" },
+    { key: "emi", label: "EMI" },
+    { key: "created", label: "Created On" },
+    { key: "action", label: "Action", align: "right" },
+  ];
+
+  const recentColumns = [
+    { key: "id", label: "Quotation ID" },
+    { key: "lead", label: "Lead" },
+    { key: "model", label: "Approved Model" },
+    { key: "price", label: "Price" },
+    { key: "requestedBy", label: "Requested By" },
+    { key: "approvedOn", label: "Approved On" },
+  ];
+
+  const leadColumns = [
+    { key: "client", label: "Client" },
+    { key: "lead", label: "Lead" },
+    { key: "stage", label: "Stage" },
+    { key: "priority", label: "Priority" },
+    { key: "executive", label: "Executive" },
+    { key: "source", label: "Source" },
+    { key: "created", label: "Created" },
+  ];
+
+  
+  const openOrderModal = (order: any) => {
+    setSelectedOrder(order);
+    setVerifyNote("");
+    setShowOrderModal(true);
+  };
+
+  const openQuoteModal = (quote: any) => {
+    setSelectedQuote(quote);
+    setApprovedDiscount((quote.requestedDiscount ?? "").toString());
+    setApprovedTenor((quote.emiTenor ?? "").toString());
+    setManagerComments("");
+    setDecision("approve");
+    setShowQuoteModal(true);
+  };
+
+  const handleQuoteSubmit = async () => {
+    if (!selectedQuote) return;
+    setActionLoading("quote");
+    try {
+      await simulateNetwork();
+      triggerToast(`Approved ${selectedQuote.lead}`, "success");
+    } catch {
+      triggerToast("Approval failed. Rolled back changes.", "error");
+    } finally {
+      setActionLoading(null);
+      setShowQuoteModal(false);
+    }
+  };
+
+  const handleVerifySubmit = async () => {
+    if (!selectedOrder) return;
+    setActionLoading("order");
+    try {
+      await simulateNetwork();
+      triggerToast(`Verified order ${selectedOrder.id}`, "success");
+    } catch {
+      triggerToast("Verification failed. Rolled back changes.", "error");
+    } finally {
+      setActionLoading(null);
+      setShowOrderModal(false);
+    }
+  };
+
+const orderRows = filteredOrderSheets.map((order) => ({
+    id: <span className="font-semibold text-indigo-700">{order.id}</span>,
+    lead: order.lead,
+    model: order.model,
+    qty: order.qty,
+    total: order.total,
+    by: order.by,
+    on: order.on,
+    action: (
+      <div className="flex justify-end gap-2">
+        <button
+          className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-indigo-600 shadow-sm transition hover:bg-indigo-50"
+          onClick={() => openOrderModal(order)}
+        >
+          Review
+        </button>
+        <button
+          className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100"
+          onClick={() => openOrderModal(order)}
+        >
+          Verify
+        </button>
+      </div>
+    ),
+  }));
+
+const approvalRows = filteredApprovals.map((item) => ({
+    id: <span className="font-semibold text-indigo-700">{item.id}</span>,
+    lead: item.lead,
+    requestedBy: item.requestedBy,
+    model: item.model,
+    discount: item.discount,
+    payment: item.payment,
+    emi: item.emi,
+    created: item.created,
+    action: (
+      <button
+        className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-indigo-600 shadow-sm transition hover:bg-indigo-50"
+        onClick={() => openQuoteModal(item)}
+      >
+        Review
+      </button>
+    ),
+  }));
+
+const recentRows = filteredRecentApprovals.map((item) => ({
+    id: <span className="font-semibold text-emerald-700">{item.id}</span>,
+    lead: item.lead,
+    model: item.model,
+    price: item.price,
+    requestedBy: item.requestedBy,
+    approvedOn: item.approvedOn,
+  }));
+
+  const leadRows = filteredLeads.map((lead) => ({
+    client: <span className="font-semibold text-slate-900">{lead.client}</span>,
+    lead: lead.lead,
+    stage: (
+      <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+        {lead.stage}
+      </span>
+    ),
+    priority: (
+      <span
+        className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+          lead.priority === "Hot" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"
+        }`}
+      >
+        {lead.priority}
+      </span>
+    ),
+    executive: lead.executive,
+    source: lead.source,
+    created: lead.created,
+  }));
+
+  const TableCard = ({
+    title,
+    columns,
+    rows,
+    detail,
+  }: {
+    title: string;
+    columns: { key: string; label: string; align?: "left" | "right" }[];
+    rows: Record<string, ReactNode>[];
+    detail?: ReactNode;
+  }) => (
+    <Section title={title}>
+      {detail}
+      {rows.length === 0 ? (
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-600">
+          {normalizedSearch ? (
+            <>
+              No results for <span className="text-slate-900">"{searchTerm}"</span>. Try a different term.
+            </>
+          ) : (
+            "No records to show right now."
+          )}
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-slate-100">
+          <table className="min-w-full divide-y divide-slate-100 text-sm">
+            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              <tr>
+                {columns.map((column) => (
+                  <th
+                    key={column.key}
+                    className={`px-4 py-3 ${column.align === "right" ? "text-right" : ""}`}
+                  >
+                    {column.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {rows.map((row, index) => (
+                <tr key={index} className="hover:bg-slate-50">
+                  {columns.map((column) => (
+                    <td
+                      key={column.key}
+                      className={`px-4 py-3 ${column.align === "right" ? "text-right" : ""} text-slate-700`}
+                    >
+                      {row[column.key] ?? "-"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Section>
+  );
+
+  const renderOverview = () => (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+        {pipelineMetrics.map((metric) => (
+          // Pastel KPI cards for Sales Manager to match the app theme
+          <div
+            key={metric.label}
+            className={`rounded-2xl border bg-gradient-to-br ${pastelToneStyles[metric.tone].card} p-4 shadow-sm ${pastelToneStyles[metric.tone].shadow} transition hover:-translate-y-[2px] hover:shadow-lg`}
+          >
+            <div className="flex items-center gap-3">
+              <span
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${pastelToneStyles[metric.tone].badge}`}
+              >
+                {metric.code}
+              </span>
+              <p className="text-sm font-semibold text-slate-700">{metric.label}</p>
+            </div>
+            <p className="mt-3 text-2xl font-bold text-slate-900 drop-shadow-sm">{metric.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <TableCard
+        title="Order Sheets Awaiting Verification"
+        columns={orderColumns}
+        rows={orderRows}
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <TableCard
+            title="Pending Approvals"
+            columns={approvalColumns.filter((column) => column.key !== "requestedBy" && column.key !== "emi")}
+            rows={filteredApprovals.map((item) => ({
+              id: <span className="font-semibold text-indigo-700">{item.id}</span>,
+              lead: item.lead,
+              model: item.model,
+              discount: item.discount,
+              payment: item.payment,
+              created: item.created,
+              action: (
+                <button
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-indigo-600 shadow-sm transition hover:bg-indigo-50"
+                  onClick={() => openQuoteModal(item)}
+                >
+                  Review
+                </button>
+              ),
+            }))}
+            detail={
+              <div className="flex items-center justify-between pb-3 text-sm font-semibold text-slate-600">
+                <span>Quotations awaiting your review</span>
+                <button className="text-indigo-600 underline-offset-4 hover:underline">View all</button>
+              </div>
+            }
+          />
+        </div>
+        <Section title="Sales Executives" subtitle="Performance snapshot">
+          <div className="space-y-3">
+            {executives.map((exec) => (
+              <div
+                key={exec.name}
+                className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+                      {exec.name[0]}
+                    </span>
+                    <div>
+                      <p className="text-base font-semibold text-slate-900">{exec.name}</p>
+                      <p className="text-xs font-semibold text-slate-500">
+                        Leads: {exec.leads} | Quotes: {exec.quotes} | Conv: {exec.conversion}
+                      </p>
+                    </div>
+                  </div>
+                  <button className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                    {exec.status}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      </div>
+    </div>
+  );
+
+  const renderApprovals = () => (
+    <div className="space-y-4">
+      <TableCard
+        title="Quotations Awaiting Approval"
+        columns={approvalColumns}
+        rows={approvalRows}
+            detail={
+              <div className="flex items-center justify-between pb-3 text-sm font-semibold text-slate-600">
+                <span>Open list</span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600">
+              {filteredApprovals.length} pending
+                </span>
+              </div>
+            }
+          />
+
+      <TableCard title="Recently Approved" columns={recentColumns} rows={recentRows} />
+    </div>
+  );
+  const renderOrderSheets = () => (
+    <TableCard title="Order Sheets" columns={orderColumns} rows={orderRows} />
+  );
+
+  const renderLeads = () => (
+    <TableCard
+      title="Leads"
+      columns={leadColumns}
+      rows={leadRows}
+      detail={
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-slate-600">Track client, stage, and ownership</p>
+          <div className="relative">
+            <input
+              className="w-64 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+              placeholder="Search by client, lead, executive..."
+              type="text"
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="11" cy="11" r="6" />
+                <path d="m15.5 15.5 3 3" />
+              </svg>
+            </span>
+          </div>
+        </div>
+      }
+    />
+  );
+
+  const renderExecutives = () => (
+    <Section title="Team Performance">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {executives.map((exec) => (
+          <div
+            key={exec.name}
+            className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100 transition hover:-translate-y-[2px] hover:shadow-lg"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+                  {exec.name[0]}
+                </span>
+                <div>
+                  <p className="text-base font-semibold text-slate-900">{exec.name}</p>
+                  <p className="text-xs font-semibold text-slate-500">Conversion: {exec.conversion}</p>
+                </div>
+              </div>
+              <button className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                {exec.status}
+              </button>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl bg-slate-50 px-2 py-2">
+                <p className="text-lg font-bold text-slate-900">{exec.leads}</p>
+                <p className="text-[11px] font-semibold text-slate-500">Leads</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-2 py-2">
+                <p className="text-lg font-bold text-slate-900">{exec.quotes}</p>
+                <p className="text-[11px] font-semibold text-slate-500">Quotes</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-2 py-2">
+                <p className="text-lg font-bold text-slate-900">0</p>
+                <p className="text-[11px] font-semibold text-slate-500">Orders</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+
+  const renderReports = () => (
+    <Section title="Reports & Analytics">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {reportCards.map((card) => (
+          <div
+            key={card.label}
+            className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100"
+          >
+            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">{card.label}</p>
+            <p className="mt-2 text-xl font-semibold text-slate-900">{card.value}</p>
+            <div
+              className={`mt-3 h-2 rounded-full ${
+                card.tone === "indigo"
+                  ? "bg-gradient-to-r from-indigo-200 to-indigo-500"
+                  : card.tone === "emerald"
+                    ? "bg-gradient-to-r from-emerald-200 to-emerald-500"
+                    : card.tone === "amber"
+                      ? "bg-gradient-to-r from-amber-200 to-amber-500"
+                      : "bg-gradient-to-r from-sky-200 to-sky-500"
+              }`}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button className="rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-500">
+          Export pipeline
+        </button>
+        <button className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+          Download approvals
+        </button>
+        <button className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100">
+          View team report
+        </button>
+      </div>
+    </Section>
+  );
+
+
+  const renderQuoteModal = () => {
+    if (!showQuoteModal || !selectedQuote) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 px-4 backdrop-blur-md animate-backdrop-in">
+        <div className="w-full max-w-5xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl animate-slide-up">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-indigo-400">Quotation Review</p>
+              <h3 className="text-2xl font-semibold text-slate-900">Quotation {selectedQuote.id}</h3>
+              <p className="text-sm font-semibold text-slate-500">Status: submitted (Pending)</p>
+            </div>
+            <button
+              className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50"
+              onClick={() => setShowQuoteModal(false)}
+            >
+              x
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <p className="text-sm font-semibold text-slate-800">Quotation Summary</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm font-semibold text-slate-700">
+                <span>Model:</span>
+                <span>{selectedQuote.model}</span>
+                <span>Base Price:</span>
+                <span>{selectedQuote.basePrice}</span>
+                <span>Requested Discount:</span>
+                <span>{selectedQuote.requestedDiscount}</span>
+                <span>Payment Term:</span>
+                <span>{selectedQuote.payment}</span>
+                <span>Validity Date:</span>
+                <span>{selectedQuote.validityDate}</span>
+                <span>Final Price:</span>
+                <span>{selectedQuote.finalPrice}</span>
+                <span>EMI Tenor:</span>
+                <span>{selectedQuote.emiTenor} months</span>
+                <span>Installation Charge Payer:</span>
+                <span>{selectedQuote.installationPayer ?? "Customer"}</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <p className="text-sm font-semibold text-slate-800">Lead Snapshot</p>
+              <div className="mt-3 space-y-1 text-sm font-semibold text-slate-700">
+                <p>Company: {selectedQuote.lead}</p>
+                <p>Phone: {selectedQuote.leadPhone ?? "--"}</p>
+                <p>Source: {selectedQuote.leadSource ?? "--"}</p>
+                <p>Priority: {selectedQuote.leadPriority ?? "--"}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-inner shadow-slate-100">
+            <p className="text-base font-semibold text-slate-900">Manager Decision</p>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-slate-700">Decision *</p>
+                <div className="flex items-center gap-4 text-sm font-semibold text-slate-700">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      checked={decision === "approve"}
+                      onChange={() => setDecision("approve")}
+                    />
+                    Approve
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      checked={decision === "reject"}
+                      onChange={() => setDecision("reject")}
+                    />
+                    Reject
+                  </label>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Final Approved Discount %
+                  <input
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                    value={approvedDiscount}
+                    onChange={(event) => setApprovedDiscount(event.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Final Approved EMI Tenor (months)
+                  <input
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                    value={approvedTenor}
+                    onChange={(event) => setApprovedTenor(event.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Manager Comments
+                  <textarea
+                    className="mt-2 h-24 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                    value={managerComments}
+                    onChange={(event) => setManagerComments(event.target.value)}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={handleQuoteSubmit}
+                disabled={actionLoading === "quote"}
+              >
+                {actionLoading === "quote" && (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-t-transparent" />
+                )}
+                {actionLoading === "quote" ? "Saving..." : "Approve Quotation"}
+              </button>
+              <button
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                onClick={() => setShowQuoteModal(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderOrderModal = () => {
+    if (!showOrderModal || !selectedOrder) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 px-4 backdrop-blur-md animate-backdrop-in">
+        <div className="w-full max-w-5xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl animate-slide-up">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-indigo-400">Order Sheet</p>
+              <h3 className="text-2xl font-semibold text-slate-900">Order Sheet #{selectedOrder.id}</h3>
+              <p className="text-sm font-semibold text-slate-500">Status: {selectedOrder.status}</p>
+            </div>
+            <button
+              className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50"
+              onClick={() => setShowOrderModal(false)}
+            >
+              x
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <p className="text-sm font-semibold text-slate-800">Summary</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm font-semibold text-slate-700">
+                <span>Model</span><span>{selectedOrder.model}</span>
+                <span>Quantity</span><span>{selectedOrder.qty}</span>
+                <span>Unit Price</span><span>{selectedOrder.unitPrice}</span>
+                <span>Total Price</span><span>{selectedOrder.total}</span>
+                <span>Discount</span><span>{selectedOrder.discountValue}</span>
+                <span>Payment Method</span><span>{selectedOrder.paymentMethod}</span>
+                <span>Delivery Timeline</span><span>{selectedOrder.deliveryTimeline}</span>
+                <span>Shipment Type</span><span>{selectedOrder.shipmentType}</span>
+                <span>Customer Name</span><span>{selectedOrder.customerName}</span>
+                <span>GST No.</span><span>{selectedOrder.gstNumber}</span>
+                <span>Billing Address</span><span>{selectedOrder.billingAddress}</span>
+                <span>Shipping Address</span><span>{selectedOrder.shippingAddress}</span>
+                <span>Special Request</span><span>{selectedOrder.specialRequest}</span>
+                <span>Terms / Notes</span><span>{selectedOrder.termsNotes}</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-inner shadow-slate-100">
+              <p className="text-sm font-semibold text-slate-800">Approval</p>
+              <div className="mt-3 space-y-2 text-sm font-semibold text-slate-700">
+                <p>Submitted: {selectedOrder.on}</p>
+                <p>Status: {selectedOrder.status}</p>
+                <label className="block space-y-2">
+                  <span>Verification Note (optional)</span>
+                  <textarea
+                    className="h-28 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                    value={verifyNote}
+                    onChange={(event) => setVerifyNote(event.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="mt-4 flex items-center gap-3">
+                <button
+                  className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-70"
+                  onClick={handleVerifySubmit}
+                  disabled={actionLoading === "order"}
+                >
+                  {actionLoading === "order" && (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-t-transparent" />
+                  )}
+                  {actionLoading === "order" ? "Verifying..." : "Verify"}
+                </button>
+                <button
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  onClick={() => setShowOrderModal(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTabContent = () => {
+    switch (currentTab) {
+      case "approvals":
+        return renderApprovals();
+      case "orders":
+        return renderOrderSheets();
+      case "leads":
+        return renderLeads();
+      case "executives":
+        return renderExecutives();
+      case "reports":
+        return renderReports();
+      default:
+        return renderOverview();
+    }
+  };
+
+  const renderSkeleton = () => (
+    <div className="space-y-6 animate-fade-in">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div
+            key={index}
+            className="rounded-2xl border border-slate-100 bg-white/80 p-4 shadow-sm shadow-slate-100"
+          >
+            <div className="flex items-center gap-3">
+              <span className="h-8 w-8 rounded-full shimmer" />
+              <div className="h-3 w-20 rounded-full shimmer" />
+            </div>
+            <div className="mt-4 h-6 w-12 rounded-full shimmer" />
+          </div>
+        ))}
+      </div>
+      <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm shadow-slate-100">
+        <div className="flex flex-col gap-3">
+          <div className="h-4 w-40 rounded-full shimmer" />
+          <div className="h-10 w-full rounded-2xl shimmer" />
+          <div className="h-10 w-56 rounded-2xl shimmer" />
+        </div>
+      </div>
+      <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm shadow-slate-100">
+        <div className="h-64 rounded-2xl shimmer" />
+      </div>
+    </div>
+  );
+
+  if (isLoadingPage) {
+    return renderSkeleton();
+  }
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#3c78ff] via-[#119dff] to-[#07d6c0] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-white/70">
-              Sales manager
-            </p>
-            <h2 className="mt-2 text-3xl font-semibold text-white">
-              {profileName}, steer the team to target.
-            </h2>
-            <p className="mt-1 text-sm text-white/80">
-              Track pipeline health, unblock deals, and push regional momentum.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3 text-sm font-semibold">
-            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
-              Team on-track: 76%
-            </span>
-            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
-              Priority deals: 12
-            </span>
-            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
-              Avg response: 1.8h
-            </span>
-          </div>
+      <div className="relative overflow-hidden rounded-[28px] bg-linear-to-r from-slate-900/60 via-indigo-600/55 to-sky-500/55 p-6 text-white shadow-2xl shadow-indigo-200/60">
+        <div className="pointer-events-none absolute inset-0 opacity-60">
+          <div className="absolute -left-12 -top-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute -right-12 bottom-0 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute left-1/3 top-6 h-28 w-28 rounded-full bg-cyan-300/20 blur-2xl" />
         </div>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button className="rounded-2xl bg-white px-4 py-2 text-indigo-700 transition hover:-translate-y-[1px] hover:shadow-sm">
-            Assign leads
-          </button>
-          <button className="rounded-2xl border border-white/60 bg-white/10 px-4 py-2 text-white transition hover:-translate-y-[1px] hover:bg-white/15">
-            Approve discounts
-          </button>
-          <button className="rounded-2xl border border-white/60 bg-white/10 px-4 py-2 text-white transition hover:-translate-y-[1px] hover:bg-white/15">
-            Export report
-          </button>
+        <div className="relative flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => router.back()}
+                className="group inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur transition hover:-translate-y-[1px] hover:bg-white/20"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4 text-white transition group-hover:-translate-x-[1px]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                >
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+                Back
+              </button>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-white/70">
+                  Manager dashboard
+                </p>
+                <h2 className="text-2xl font-semibold leading-tight text-white">
+                  Pipeline overview, approvals, and team performance
+                </h2>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 text-sm shadow-lg shadow-black/10 ring-1 ring-white/15 backdrop-blur">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-bold text-slate-900">
+                {profileName.charAt(0) || "M"}
+              </div>
+              <div className="text-left leading-tight">
+                <p className="text-sm font-semibold text-white">{profileName || "Manager"}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-white/70">
+                  {(roleSlug ?? "Manager").replace(/-/g, " ")}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-white/10 px-3 py-3 text-sm shadow-inner shadow-white/10 backdrop-blur">
+            <div className="flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-white/60">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M4 6h16M4 12h16M4 18h7" />
+              </svg>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-700 focus:border-indigo-400 focus:outline-none"
+                placeholder="dd-mm-yyyy"
+              />
+              <span className="text-xs text-slate-400">to</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-700 focus:border-indigo-400 focus:outline-none"
+                placeholder="dd-mm-yyyy"
+              />
+            </div>
+            <form
+              onSubmit={handleSearchSubmit}
+              className="relative flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-white/60"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4 text-slate-400"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
+                <circle cx="11" cy="11" r="6" />
+                <path d="m15.5 15.5 3 3" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search leads, orders, executives"
+                className="w-56 rounded-xl bg-transparent text-sm font-semibold text-slate-700 outline-none placeholder:text-slate-400"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+              <button
+                type="submit"
+                className="rounded-xl bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-500"
+              >
+                Search
+              </button>
+            </form>
+            <button
+              onClick={handleRefresh}
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm shadow-indigo-200 transition hover:-translate-y-[1px] hover:shadow-lg disabled:opacity-60"
+              disabled={isRefreshing}
+            >
+              <span className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""} rounded-full border-2 border-indigo-500 border-t-transparent`} />
+              {isRefreshing ? "Refreshing" : "Refresh data"}
+            </button>
+          </div>
         </div>
       </div>
 
-      <KpiGrid items={kpis} />
-
-      <Section title="Team leaderboard" subtitle="Performance this week" variant="pastel">
-        <div className="grid gap-3 lg:grid-cols-2">
-          {leaderboard.map((member) => (
-            <div
-              key={member.name}
-              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[2px] hover:shadow-xl"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base font-semibold text-slate-900">{member.name}</p>
-                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
-                    {member.won} won / {member.followups} follow-ups pending
-                  </p>
-                </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                    member.tone === "emerald"
-                      ? "bg-emerald-50 text-emerald-700"
-                      : member.tone === "indigo"
-                        ? "bg-indigo-50 text-indigo-700"
-                        : member.tone === "amber"
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-sky-50 text-sky-700"
-                  }`}
-                >
-                  Score {member.score}
-                </span>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm font-semibold text-slate-700">
-                <span>Pipeline: {member.pipeline}</span>
-                <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-                  Follow-ups: {member.followups}
-                </span>
-              </div>
-              <div className="mt-3 h-2.5 rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400 transition-all duration-500"
-                  style={{ width: `${Math.min(member.score, 100)}%` }}
-                />
-              </div>
-            </div>
-          ))}
+      <div
+        key={`${currentTab}-${dataRefreshKey}`}
+        className="space-y-4 animate-fade-in"
+      >
+        {isRefreshing && (
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-transparent" />
+            Smart refresh in progress...
+          </div>
+        )}
+        {renderTabContent()}
+      </div>
+      {renderQuoteModal()}
+      {renderOrderModal()}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg shadow-slate-200 animate-toast-in ${
+            toast.tone === "success"
+              ? "border border-emerald-100 bg-emerald-50 text-emerald-700"
+              : "border border-rose-100 bg-rose-50 text-rose-700"
+          }`}
+        >
+          <span
+            className={`flex h-7 w-7 items-center justify-center rounded-full ${
+              toast.tone === "success" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+            }`}
+          >
+            {toast.tone === "success" ? "✓" : "!"}
+          </span>
+          <span>{toast.message}</span>
         </div>
-      </Section>
-
-      <Section title="Pipeline health" subtitle="Stage conversion and velocity" variant="pastel">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {pipelineStages.map((stage) => (
-            <div
-              key={stage.stage}
-              className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-md shadow-indigo-50 transition hover:-translate-y-[2px] hover:shadow-xl"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-800">{stage.stage}</p>
-                <span className="text-xs font-semibold text-slate-500">{stage.rate}</span>
-              </div>
-              <p className="mt-2 text-2xl font-bold text-slate-900">{stage.count}</p>
-              <div className="mt-3 h-2.5 rounded-full bg-slate-100">
-                <div
-                  className={`h-full rounded-full bg-gradient-to-r ${stage.color}`}
-                  style={{ width: `${stage.fill}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Region performance" subtitle="Revenue and growth by zone">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {regions.map((region) => (
-            <div
-              key={region.region}
-              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-800">{region.region}</p>
-                <span
-                  className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
-                    region.growth.startsWith("-")
-                      ? "bg-rose-50 text-rose-700"
-                      : "bg-emerald-50 text-emerald-700"
-                  }`}
-                >
-                  {region.growth}
-                </span>
-              </div>
-              <p className="mt-2 text-lg font-bold text-slate-900">{region.value}</p>
-              <div className="mt-3 h-2.5 rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-sky-400 to-indigo-500"
-                  style={{ width: `${region.fill}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Manager watchlist" subtitle="Alerts and approvals">
-        <div className="grid gap-3 lg:grid-cols-2">
-          {alerts.map((alert) => (
-            <div
-              key={alert}
-              className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
-            >
-              <span>{alert}</span>
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-700">
-                Action
-              </span>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Quick actions">
-        <QuickActions actions={quickActions} />
-      </Section>
+      )}
     </div>
   );
 }
-
 function AccountantDashboard({ profileName }: DashboardProps) {
   const receivables = [
     { label: "0-7 days", value: "₹ 6,20,000", percent: 38, tone: "emerald" },
@@ -2014,7 +3083,8 @@ const hrDefaults: HrData = {
   },
 };
 
-function HrDashboard({ profileName }: DashboardProps) {
+function HrDashboard({ profileName: _profileName }: DashboardProps) {
+  void _profileName;
   const [data, setData] = useState<HrData>(hrDefaults);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({
