@@ -2835,132 +2835,687 @@ function ServiceEngineerDashboard({ profileName }: DashboardProps) {
   );
 }
 
+
 function SalesExecutiveDashboard({ profileName }: DashboardProps) {
-  const deals = [
-    { name: "Sri Plastics", value: "₹ 4,80,000", stage: "Negotiation", eta: "Close in 5d", tone: "amber" },
-    { name: "North Mills", value: "₹ 3,25,000", stage: "Quote sent", eta: "Follow-up tomorrow", tone: "sky" },
-    { name: "Summit Agro", value: "₹ 2,10,000", stage: "Contacted", eta: "Demo scheduled", tone: "indigo" },
-    { name: "Arora Foods", value: "₹ 1,45,000", stage: "Won", eta: "PO received", tone: "emerald" },
+  type LeadStatus =
+    | "New"
+    | "Contacted"
+    | "Qualified"
+    | "Quotation"
+    | "Negotiation"
+    | "Won"
+    | "Lost"
+    | "Pending Approval";
+
+  type LeadItem = {
+    id: string;
+    customer: string;
+    phone: string;
+    state: string;
+    status: LeadStatus;
+    model?: string;
+    nextAction: string;
+    createdAt: string;
+    priority: "Hot" | "Warm" | "Cold";
+    source: string;
+    value: string;
+  };
+
+  type Quotation = {
+    id: string;
+    status: "Draft" | "Submitted" | "Approved" | "PO Received" | "Pending" | "Rejected";
+    company: string;
+    client: string;
+    leadId: string;
+    date: string;
+    price: string;
+    validity: string;
+  };
+
+  const stageOrder: LeadStatus[] = [
+    "New",
+    "Contacted",
+    "Qualified",
+    "Quotation",
+    "Negotiation",
+    "Won",
+    "Lost",
   ];
-  const funnel = [
-    { stage: "New Leads", value: 22, color: "from-indigo-100 to-indigo-300" },
-    { stage: "Contacted", value: 18, color: "from-sky-100 to-sky-300" },
-    { stage: "Quote Sent", value: 10, color: "from-amber-100 to-amber-300" },
-    { stage: "Negotiation", value: 6, color: "from-purple-100 to-purple-300" },
-    { stage: "Won", value: 3, color: "from-emerald-100 to-emerald-300" },
+
+  const [activeTab, setActiveTab] = useState<"dashboard" | "quotations" | "orders">("dashboard");
+  const [leadSearch, setLeadSearch] = useState("");
+  const [leadStatusFilter, setLeadStatusFilter] = useState<LeadStatus | "All">("All");
+  const [quotationFilter, setQuotationFilter] = useState<Quotation["status"] | "All">("All");
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState<"overview" | "enrichment" | "quotations" | "exchange">("overview");
+  const [toast, setToast] = useState<string | null>(null);
+  const [gps, setGps] = useState<{ lat: string; lng: string } | null>(null);
+  const [attachments, setAttachments] = useState<number>(0);
+
+  const [leads, setLeads] = useState<LeadItem[]>([
+    {
+      id: "CS-251201",
+      customer: "Matrix Smart",
+      phone: "+91 98400 11223",
+      state: "Tamil Nadu",
+      status: "Won",
+      model: "6979aad8-9de6-4589-b824-6cfbc5099804",
+      nextAction: "Review",
+      createdAt: "21/11/2025",
+      priority: "Warm",
+      source: "Existing Client",
+      value: "Rs 14,80,000",
+    },
+    {
+      id: "CS-251110",
+      customer: "ABC Company",
+      phone: "+91 90030 22211",
+      state: "Karnataka",
+      status: "Pending Approval",
+      model: "037e924c-02a5-4ea6-90df-471861a25e96",
+      nextAction: "Validate contact",
+      createdAt: "21/11/2025",
+      priority: "Warm",
+      source: "Inbound",
+      value: "Rs 13,25,000",
+    },
+    {
+      id: "CS-251109",
+      customer: "Summit Agro",
+      phone: "+91 98841 12345",
+      state: "Telangana",
+      status: "Quotation",
+      model: "Not set",
+      nextAction: "Follow-up call",
+      createdAt: "20/11/2025",
+      priority: "Hot",
+      source: "Expo",
+      value: "Rs 12,10,000",
+    },
+    {
+      id: "CS-251108",
+      customer: "North Mills",
+      phone: "+91 90922 55667",
+      state: "Delhi",
+      status: "Negotiation",
+      model: "6979aad8-9de6-4589-b824-6cfbc5099804",
+      nextAction: "Review",
+      createdAt: "19/11/2025",
+      priority: "Warm",
+      source: "Partner",
+      value: "Rs 11,45,000",
+    },
+    {
+      id: "CS-251107",
+      customer: "Harsha Foods",
+      phone: "+91 98989 11122",
+      state: "Maharashtra",
+      status: "Contacted",
+      model: "Not set",
+      nextAction: "Enrich data",
+      createdAt: "19/11/2025",
+      priority: "Cold",
+      source: "Web",
+      value: "Rs 5,20,000",
+    },
+  ]);
+
+  const [quotations, setQuotations] = useState<Quotation[]>([
+    {
+      id: "Q-2025-166609",
+      status: "PO Received",
+      company: "Matrix Smart",
+      client: "Matrix Smart",
+      leadId: "CS-251201",
+      date: "21/11/2025",
+      price: "Rs 1,11,80,000",
+      validity: "Valid till 15 Dec",
+    },
+    {
+      id: "Q-2025-771",
+      status: "Submitted",
+      company: "ABC Company",
+      client: "ABC Company",
+      leadId: "CS-251110",
+      date: "21/11/2025",
+      price: "Rs 13,98,000",
+      validity: "Valid till 05 Dec",
+    },
+    {
+      id: "Q-2025-668",
+      status: "Pending",
+      company: "ABC Company",
+      client: "ABC Company",
+      leadId: "CS-251109",
+      date: "21/11/2025",
+      price: "Rs 10,00,000",
+      validity: "Valid till 07 Dec",
+    },
+    {
+      id: "Q-2025-702",
+      status: "Approved",
+      company: "Summit Agro",
+      client: "Summit Agro",
+      leadId: "CS-251108",
+      date: "20/11/2025",
+      price: "Rs 15,45,000",
+      validity: "Valid till 10 Dec",
+    },
+  ]);
+
+  const filteredLeads = useMemo(() => {
+    const search = leadSearch.toLowerCase();
+    return leads.filter((lead) => {
+      const matchesSearch =
+        lead.customer.toLowerCase().includes(search) ||
+        lead.id.toLowerCase().includes(search) ||
+        lead.phone.toLowerCase().includes(search);
+      const matchesStatus = leadStatusFilter === "All" || lead.status === leadStatusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [leads, leadSearch, leadStatusFilter]);
+
+  const selectedLead =
+    selectedLeadId && filteredLeads.find((lead) => lead.id === selectedLeadId)
+      ? filteredLeads.find((lead) => lead.id === selectedLeadId) ?? filteredLeads[0] ?? null
+      : filteredLeads[0] ?? null;
+
+  useEffect(() => {
+    if (selectedLead && selectedLead.id !== selectedLeadId) {
+      setSelectedLeadId(selectedLead.id);
+    }
+  }, [selectedLead, selectedLeadId]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 2000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const pendingApprovals = leads.filter((lead) => lead.status === "Pending Approval");
+  const summaryCards = [
+    { label: "My Leads", value: leads.length, sub: "+4 today" },
+    { label: "Pending Approvals", value: pendingApprovals.length, sub: "Manager queue" },
+    { label: "Quotes Sent", value: quotations.length, sub: "Across active leads" },
   ];
+
+  const filteredQuotations = quotations.filter((q) => quotationFilter === "All" || q.status === quotationFilter);
+
+  const handleActionToast = (message: string) => setToast(message);
+  const handleCaptureGps = () => {
+    setGps({ lat: "13.0827", lng: "80.2707" });
+    setToast("GPS captured");
+  };
+  const handleAttach = () => {
+    setAttachments((prev) => prev + 1);
+    setToast("Attachment added");
+  };
+  const handlePipelineMove = (nextStatus: LeadStatus) => {
+    if (!selectedLead) return;
+    setLeads((prev) => prev.map((lead) => (lead.id === selectedLead.id ? { ...lead, status: nextStatus } : lead)));
+    setToast(`Stage moved to ${nextStatus}`);
+  };
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#3c78ff] via-[#119dff] to-[#07d6c0] p-6 text-white shadow-[0_25px_80px_rgba(59,130,246,0.35)]">
+      <div className="overflow-hidden rounded-3xl bg-linear-to-r from-slate-900/60 via-indigo-600/55 to-sky-500/55 p-6 text-white shadow-2xl shadow-indigo-200/60">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-white/70">
-              Sales command
-            </p>
-            <h2 className="mt-2 text-3xl font-semibold text-white">
-              {profileName}, keep momentum on live deals.
-            </h2>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/70">Sales Executive</p>
+            <h2 className="mt-2 text-3xl font-semibold text-white">Hi {profileName}, keep the funnel moving.</h2>
             <p className="mt-1 text-sm text-white/80">
-              Track funnel health, follow-ups, and top opportunities.
+              Review leads, send quotes, and log follow-ups from one workspace.
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-sm font-semibold">
-            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
-              Leads today: 12
-            </span>
-            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
-              Win rate: 28%
-            </span>
-            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">
-              Follow-ups pending: 7
-            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">Leads today: 12</span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">Win rate: 28%</span>
+            <span className="rounded-2xl bg-white/15 px-4 py-2 text-white backdrop-blur">Follow-ups: 7</span>
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button className="rounded-2xl bg-white px-4 py-2 text-indigo-700 transition hover:-translate-y-[1px] hover:shadow-sm">
+          <button className="rounded-2xl bg-white px-4 py-2 text-indigo-700 transition hover:-translate-y-px hover:shadow-sm">
             + Add lead
           </button>
-          <button className="rounded-2xl border border-white/60 px-4 py-2 text-white transition hover:-translate-y-[1px] hover:bg-white/15">
+          <button className="rounded-2xl border border-white/60 px-4 py-2 text-white transition hover:-translate-y-px hover:bg-white/15">
             Log follow-up
           </button>
         </div>
+        <div className="mt-4 flex flex-wrap gap-2 text-sm font-semibold">
+          {["dashboard", "quotations", "orders"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab as typeof activeTab)}
+              className={`rounded-full px-3 py-1.5 transition ${
+                activeTab === tab ? "bg-white text-indigo-700 shadow-sm shadow-indigo-200" : "bg-white/15 text-white"
+              }`}
+            >
+              {tab === "dashboard" ? "Dashboard" : tab === "quotations" ? "Quotations" : "Orders"}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <KpiGrid
-        items={[
-          { label: "Leads Assigned", value: "14", subLabel: "+4 today" },
-          { label: "Follow-ups Due", value: "9", subLabel: "7 today" },
-          { label: "Orders Won", value: "3", subLabel: "Win rate 28%" },
-          { label: "Pipeline Value", value: "₹ 12,35,000", subLabel: "Prioritized top 5" },
-        ]}
-      />
-
-      <Section title="Sales funnel" subtitle={`Live funnel for ${profileName}`} variant="pastel">
-        <div className="grid gap-4 text-sm text-slate-600 sm:grid-cols-5">
-          {funnel.map((item) => (
-            <div
-              key={item.stage}
-              className="rounded-2xl border border-white/70 bg-white/90 p-4 text-center shadow-sm shadow-indigo-50 transition hover:-translate-y-[2px] hover:shadow-lg"
-            >
+      {activeTab === "dashboard" && (
+        <>
+          <section className="grid gap-3 sm:grid-cols-3">
+            {summaryCards.map((card) => (
               <div
-                className={`mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${item.color} text-xl font-semibold text-slate-800 shadow-inner shadow-white`}
+                key={card.label}
+                className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100 transition hover:-translate-y-px hover:shadow-lg"
               >
-                {item.value}
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">{card.label}</p>
+                <p className="mt-2 text-3xl font-semibold text-slate-900">{card.value}</p>
+                <p className="text-xs font-semibold text-slate-600">{card.sub}</p>
               </div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                {item.stage}
-              </p>
-            </div>
-          ))}
-        </div>
-      </Section>
+            ))}
+          </section>
 
-      <Section title="Top opportunities" subtitle="Focus deals to close" variant="pastel">
-        <div className="grid gap-3 lg:grid-cols-2">
-          {deals.map((deal) => (
-            <div
-              key={deal.name}
-              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
-            >
-              <div className="flex items-center justify-between">
+          <section className="mt-5 grid gap-4 lg:grid-cols-3">
+            <div className="space-y-3 lg:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-base font-semibold text-slate-900">{deal.name}</p>
-                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
-                    {deal.stage}
-                  </p>
+                  <p className="text-sm font-semibold text-slate-800">My Leads</p>
+                  <p className="text-xs text-slate-500">Search and filter by stage</p>
                 </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                    deal.tone === "amber"
-                      ? "bg-amber-50 text-amber-700"
-                      : deal.tone === "sky"
-                        ? "bg-sky-50 text-sky-700"
-                        : deal.tone === "emerald"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-indigo-50 text-indigo-700"
-                  }`}
-                >
-                  {deal.value}
-                </span>
+                <div className="flex flex-wrap gap-2 text-sm font-semibold">
+                  {(["All", ...stageOrder] as const).map((stage) => (
+                    <button
+                      key={stage}
+                      className={`rounded-full px-3 py-1 transition ${
+                        leadStatusFilter === stage
+                          ? "bg-indigo-500 text-white shadow-sm shadow-indigo-200"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                      onClick={() => setLeadStatusFilter(stage)}
+                    >
+                      {stage}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <p className="mt-2 text-xs font-semibold text-slate-600">
-                {deal.eta}
-              </p>
-            </div>
-          ))}
-        </div>
-      </Section>
 
-      <Section title="Quick actions">
-        <QuickActions
-          actions={["+ Add Lead", "+ Add Quotation", "+ Log Activity", "+ Schedule Demo", "+ Send Catalog"]}
-        />
-      </Section>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <circle cx="11" cy="11" r="6" />
+                    <path d="m15.5 15.5 3 3" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search leads, phone, ID"
+                    className="w-48 bg-transparent text-sm font-semibold text-slate-700 outline-none placeholder:text-slate-400"
+                    value={leadSearch}
+                    onChange={(event) => setLeadSearch(event.target.value)}
+                  />
+                </div>
+                <button
+                  onClick={() => setLeadSearch("")}
+                  className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-200"
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                {filteredLeads.map((lead) => (
+                  <div
+                    key={lead.id}
+                    className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100 transition hover:-translate-y-px hover:shadow-lg"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">
+                          {lead.customer} <span className="text-xs text-slate-500">({lead.id})</span>
+                        </p>
+                        <p className="text-xs text-slate-500">{lead.phone}</p>
+                        <p className="text-xs text-slate-500">{lead.state}</p>
+                      </div>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700">
+                        {lead.status}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-600">
+                      <span className="rounded-full bg-slate-100 px-2 py-1">Model: {lead.model ?? "Not set"}</span>
+                      <span
+                        className={`rounded-full px-2 py-1 ${
+                          lead.priority === "Hot"
+                            ? "bg-rose-50 text-rose-600"
+                            : lead.priority === "Warm"
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {lead.priority}
+                      </span>
+                      <span className="rounded-full bg-indigo-50 px-2 py-1 text-indigo-700">{lead.source}</span>
+                    </div>
+                    <p className="mt-2 text-xs font-semibold text-slate-600">Next: {lead.nextAction}</p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                      <button
+                        className="rounded-full bg-indigo-500 px-3 py-1.5 text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-400"
+                        onClick={() => {
+                          setSelectedLeadId(lead.id);
+                          setDetailTab("overview");
+                        }}
+                      >
+                        Open
+                      </button>
+                      <button
+                        className="rounded-full bg-emerald-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-400"
+                        onClick={() => handleActionToast("Follow-up logged")}
+                      >
+                        Log follow-up
+                      </button>
+                      <button
+                        className="rounded-full bg-amber-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:bg-amber-400"
+                        onClick={() => handleActionToast("Quotation drafted")}
+                      >
+                        Create quote
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-slate-800">Pending approvals</p>
+                  <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">
+                    {pendingApprovals.length}
+                  </span>
+                </div>
+                {pendingApprovals.length === 0 ? (
+                  <p className="mt-2 text-xs font-semibold text-slate-500">No pending approvals.</p>
+                ) : (
+                  <div className="mt-3 space-y-2 text-sm text-slate-700">
+                    {pendingApprovals.map((lead) => (
+                      <div
+                        key={lead.id}
+                        className="rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2 shadow-sm shadow-amber-100"
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-slate-900">{lead.customer}</p>
+                          <span className="text-[11px] font-semibold text-amber-700">{lead.status}</span>
+                        </div>
+                        <p className="text-xs text-slate-600">Next: {lead.nextAction}</p>
+                        <div className="mt-2 flex gap-2 text-[11px] font-semibold">
+                          <button
+                            onClick={() => handleActionToast("Request sent to manager")}
+                            className="rounded-full bg-indigo-500 px-3 py-1 text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-400"
+                          >
+                            Nudge manager
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedLeadId(lead.id);
+                              setDetailTab("quotations");
+                            }}
+                            className="rounded-full bg-white px-3 py-1 text-indigo-700 shadow-sm transition hover:bg-indigo-50"
+                          >
+                            View quote
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {selectedLead && (
+                <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-slate-800">Lead detail</p>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700">
+                      {selectedLead.status}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {selectedLead.customer} <span className="text-xs text-slate-500">({selectedLead.id})</span>
+                  </p>
+                  <p className="text-xs text-slate-600">{selectedLead.phone}</p>
+                  <p className="text-xs text-slate-600">{selectedLead.state}</p>
+                  <div className="mt-3 flex gap-2 text-xs font-semibold">
+                    {["overview", "enrichment", "quotations", "exchange"].map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setDetailTab(tab as typeof detailTab)}
+                        className={`rounded-full px-3 py-1 transition ${
+                          detailTab === tab ? "bg-indigo-500 text-white" : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+
+                  {detailTab === "overview" && (
+                    <div className="mt-3 space-y-2 text-xs text-slate-700">
+                      <p>
+                        Source: <span className="font-semibold">{selectedLead.source}</span>
+                      </p>
+                      <p>
+                        Priority: <span className="font-semibold">{selectedLead.priority}</span>
+                      </p>
+                      <p>
+                        Model: <span className="font-semibold">{selectedLead.model ?? "Not set"}</span>
+                      </p>
+                      <p>
+                        Next action: <span className="font-semibold">{selectedLead.nextAction}</span>
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1 text-[11px] font-semibold">
+                        {stageOrder.map((stage) => (
+                          <button
+                            key={stage}
+                            onClick={() => handlePipelineMove(stage)}
+                            className={`rounded-full px-2 py-1 transition ${
+                              selectedLead.status === stage
+                                ? "bg-indigo-500 text-white"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            }`}
+                          >
+                            {stage}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {detailTab === "enrichment" && (
+                    <div className="mt-3 space-y-2 text-xs text-slate-700">
+                      <p className="font-semibold text-slate-900">GPS Quick Action</p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleCaptureGps}
+                          className="rounded-full bg-indigo-500 px-3 py-1 text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-400"
+                        >
+                          Capture GPS
+                        </button>
+                        {gps && (
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                            {gps.lat}, {gps.lng}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 text-xs font-semibold">
+                        <button
+                          onClick={handleAttach}
+                          className="rounded-full bg-emerald-500 px-3 py-1 text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-400"
+                        >
+                          Take photo / attach
+                        </button>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                          {attachments} attachments
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {detailTab === "quotations" && (
+                    <div className="mt-3 space-y-2 text-xs text-slate-700">
+                      {quotations
+                        .filter((q) => q.leadId === selectedLead.id)
+                        .map((q) => (
+                          <div
+                            key={q.id}
+                            className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 shadow-sm shadow-slate-100"
+                          >
+                            <div className="flex items-center justify-between text-sm font-semibold text-slate-900">
+                              <span>{q.id}</span>
+                              <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-indigo-700">
+                                {q.status}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600">
+                              {q.company} ? {q.leadId}
+                            </p>
+                            <p className="text-xs text-slate-600">{q.price}</p>
+                            <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
+                              <button
+                                onClick={() => handleActionToast("PO viewed")}
+                                className="rounded-full bg-white px-3 py-1 text-indigo-700 shadow-sm transition hover:bg-indigo-50"
+                              >
+                                View PO
+                              </button>
+                              <button
+                                onClick={() => handleActionToast("Order sheet created")}
+                                className="rounded-full bg-indigo-500 px-3 py-1 text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-400"
+                              >
+                                Create order sheet
+                              </button>
+                              <button
+                                onClick={() => handleActionToast("Invoice prepared")}
+                                className="rounded-full bg-slate-900 px-3 py-1 text-white shadow-sm transition hover:bg-slate-800"
+                              >
+                                Prepare invoice
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      {quotations.filter((q) => q.leadId === selectedLead.id).length === 0 && (
+                        <p className="text-xs font-semibold text-slate-500">No quotations yet.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {detailTab === "exchange" && (
+                    <div className="mt-3 space-y-2 text-xs text-slate-700">
+                      <p className="font-semibold text-slate-900">Exchange details</p>
+                      <p className="text-xs text-slate-500">Model name: Pending</p>
+                      <p className="text-xs text-slate-500">Recent exchange activity: None</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      )}
+
+      {activeTab === "quotations" && (
+        <div className="space-y-4 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Quotations</p>
+              <p className="text-xs text-slate-500">Filter by status and manage documents</p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs font-semibold">
+              {(["All", "Draft", "Submitted", "Approved", "PO Received", "Pending", "Rejected"] as const).map(
+                (status) => (
+                  <button
+                    key={status}
+                    onClick={() => setQuotationFilter(status)}
+                    className={`rounded-full px-3 py-1 transition ${
+                      quotationFilter === status
+                        ? "bg-indigo-500 text-white shadow-sm shadow-indigo-200"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ),
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            {filteredQuotations.map((q) => (
+              <div
+                key={q.id}
+                className="rounded-2xl border border-slate-100 bg-linear-to-r from-white to-slate-50 p-4 shadow-sm shadow-slate-100 transition hover:-translate-y-px hover:shadow-lg"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-slate-900">{q.id}</p>
+                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-700">
+                    {q.status}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600">
+                  {q.company} ? {q.client}
+                </p>
+                <p className="text-xs text-slate-600">Lead: {q.leadId}</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{q.price}</p>
+                <p className="text-xs text-slate-500">{q.validity}</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
+                  <button
+                    onClick={() => handleActionToast("Quotation opened")}
+                    className="rounded-full bg-white px-3 py-1 text-indigo-700 shadow-sm transition hover:bg-indigo-50"
+                  >
+                    View
+                  </button>
+                  <button
+                    onClick={() => handleActionToast("PO viewed")}
+                    className="rounded-full bg-white px-3 py-1 text-indigo-700 shadow-sm transition hover:bg-indigo-50"
+                  >
+                    View PO
+                  </button>
+                  <button
+                    onClick={() => handleActionToast("Order sheet prepared")}
+                    className="rounded-full bg-indigo-500 px-3 py-1 text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-400"
+                  >
+                    Create order sheet
+                  </button>
+                  <button
+                    onClick={() => handleActionToast("Invoice prepared")}
+                    className="rounded-full bg-slate-900 px-3 py-1 text-white shadow-sm transition hover:bg-slate-800"
+                  >
+                    Prepare invoice
+                  </button>
+                  <button
+                    onClick={() => handleActionToast("PDF downloaded")}
+                    className="rounded-full bg-white px-3 py-1 text-indigo-700 shadow-sm transition hover:bg-indigo-50"
+                  >
+                    PDF
+                  </button>
+                  <button
+                    onClick={() => handleActionToast("Proforma generated")}
+                    className="rounded-full bg-emerald-500 px-3 py-1 text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-400"
+                  >
+                    Generate proforma
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "orders" && (
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-100">
+          Orders workspace coming soon. Track PO -> dispatch -> installation here.
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-lg shadow-slate-200">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
-
 function ServiceManagerDashboard({ profileName }: DashboardProps) {
   const escalations = [
     { ticket: "T-298", issue: "Motor overheating", age: "2h 15m", status: "Escalated", priority: "High" },
