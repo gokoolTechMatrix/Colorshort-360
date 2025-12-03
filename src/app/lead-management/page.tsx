@@ -30,6 +30,34 @@ type Lead = {
   nextAt?: string;
 };
 
+type Quotation = {
+  id: string;
+  status: "Draft" | "Submitted" | "Approved" | "PO Received" | "Pending" | "Rejected";
+  company: string;
+  client: string;
+  leadId: string;
+  date: string;
+  price: string;
+  validity?: string;
+};
+
+type OrderForm = {
+  model: string;
+  totalPrice: string;
+  quantity: string;
+  customerName: string;
+  gstNumber: string;
+  contactPerson: string;
+  billingAddress: string;
+  shippingAddress: string;
+  discount: string;
+  paymentMethod: string;
+  deliveryTimeline: string;
+  shipmentType: string;
+  specialRequest: string;
+  terms: string;
+};
+
 const leadList: Lead[] = [
   {
     id: "CS-50000",
@@ -106,7 +134,26 @@ export default function LeadManagementPage() {
   const [roleSlug, setRoleSlug] = useState<string | null>(null);
   const [isCheckingRole, setIsCheckingRole] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
-  const allowedRole = "sales-manager";
+  const allowedRoles = new Set(["sales-manager", "sales-co-ordinator", "sales-executive"]);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [selectedQuotationForOrder, setSelectedQuotationForOrder] = useState<Quotation | null>(null);
+  const defaultOrderForm = (q: Quotation | null = null): OrderForm => ({
+    model: "CS-5000",
+    totalPrice: q?.price ?? "₹ 8,40,000",
+    quantity: "1",
+    customerName: q?.client ?? "",
+    gstNumber: "11nnjcwedeq",
+    contactPerson: q?.client ? q.client.split(" ")[0] ?? "" : "",
+    billingAddress: "1342,\nMadurai, Tamil Nadu",
+    shippingAddress: "",
+    discount: "₹ 10,000",
+    paymentMethod: "",
+    deliveryTimeline: "",
+    shipmentType: "",
+    specialRequest: "",
+    terms: "",
+  });
+  const [orderForm, setOrderForm] = useState<OrderForm>(defaultOrderForm());
 
   const filteredLeads = useMemo(() => {
     if (selectedFilter === "All") return leads;
@@ -118,18 +165,18 @@ export default function LeadManagementPage() {
 
   useEffect(() => {
     const detectRole = () => {
-      if (typeof window === "undefined") return allowedRole;
+      if (typeof window === "undefined") return "sales-manager";
       const stored =
         window.localStorage.getItem("role_slug") ||
         window.localStorage.getItem("role") ||
         window.sessionStorage.getItem("role_slug") ||
         "";
       const normalized = stored?.toLowerCase().replace(/[^a-z0-9-]/g, "") || "";
-      return normalized || allowedRole;
+      return normalized || "sales-manager";
     };
     const role = detectRole();
     setRoleSlug(role);
-    setAccessDenied(role !== allowedRole);
+    setAccessDenied(!allowedRoles.has(role));
     setIsCheckingRole(false);
   }, []);
 
@@ -165,6 +212,94 @@ export default function LeadManagementPage() {
     setIsRefreshingLeads(false);
   };
 
+  const handleOrderFieldChange = (field: keyof OrderForm, value: string) => {
+    setOrderForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCopyBilling = () => {
+    setOrderForm((prev) => ({ ...prev, shippingAddress: prev.billingAddress }));
+  };
+
+  const handleOpenOrderModal = (q: Quotation) => {
+    setSelectedQuotationForOrder(q);
+    setOrderForm(defaultOrderForm(q));
+    setShowOrderModal(true);
+  };
+
+  const handleCloseOrderModal = () => {
+    setShowOrderModal(false);
+    setSelectedQuotationForOrder(null);
+  };
+
+  const handleOrderSubmit = (mode: "draft" | "submit") => {
+    setToast(mode === "submit" ? "Order sheet Submitted" : "Order sheet created");
+    setShowOrderModal(false);
+  };
+
+  const handlePrintQuote = (quote: Quotation) => {
+    const win = window.open("", "print-quote", "width=900,height=1200");
+    if (!win) return;
+    const html = `<!doctype html>
+    <html><head><meta charset="utf-8"><title>Quotation ${quote.id}</title>
+    <style>
+      body { font-family: Arial, sans-serif; color: #1f2937; margin: 32px; }
+      .row { display:flex; justify-content:space-between; }
+      .title { font-size:24px; font-weight:700; margin:12px 0; }
+      .muted { color:#6b7280; font-size:12px; }
+      table { width:100%; border-collapse:collapse; margin-top:24px; }
+      th,td { border-bottom:1px solid #e5e7eb; padding:10px; text-align:left; font-size:13px; }
+      th { text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; }
+      .total { text-align:right; font-weight:700; font-size:16px; }
+    </style>
+    </head><body>
+      <div class="row">
+        <div>
+          <div class="title">QUOTATION</div>
+          <div class="muted">No. ${quote.id}</div>
+          <div class="muted">Date: ${quote.date}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="title" style="font-size:18px;">Qube Technologies</div>
+          <div class="muted">Rice Sorting Solutions</div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:16px;">
+        <div>
+          <div class="muted" style="letter-spacing:0.08em;font-weight:700;">FROM</div>
+          <div>Qube Technologies Pvt Ltd</div>
+          <div class="muted">sales@qube.tech</div>
+          <div class="muted">GST: 33AABCU9603R1ZX</div>
+        </div>
+        <div>
+          <div class="muted" style="letter-spacing:0.08em;font-weight:700;">TO</div>
+          <div>${quote.client}</div>
+          <div class="muted">Contact: ${quote.client}</div>
+          <div class="muted">Phone: 9080202120</div>
+          <div class="muted">GST: 11nnjcwedeq</div>
+          <div class="muted">1342, Madurai, Tamil Nadu</div>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Items Description</th><th style="text-align:right;">Unit Price</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Total</th></tr></thead>
+        <tbody>
+          <tr><td>CS-5000 · High-performance rice sorter</td><td style="text-align:right;">₹ 850,000</td><td style="text-align:right;">1</td><td style="text-align:right;">₹ 850,000</td></tr>
+        </tbody>
+      </table>
+      <div class="total" style="margin-top:12px;">Subtotal: ${quote.price}</div>
+      <div class="muted" style="margin-top:8px;">Tax GST 18%: ₹ 153,000 · Discount: ₹ 10,000</div>
+      <div class="total" style="margin-top:8px;">Total Due: ₹ 993,000</div>
+      <div style="margin-top:24px;">
+        <div class="muted" style="letter-spacing:0.08em;font-weight:700;">TERMS & CONDITIONS</div>
+        <div class="muted">Payment due within 30 days. Installation and training included.</div>
+      </div>
+      <div style="margin-top:24px;font-weight:700;">Thank you for your business.</div>
+    </body></html>`;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
+  };
+
   if (isCheckingRole) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-semibold text-slate-500">
@@ -173,7 +308,7 @@ export default function LeadManagementPage() {
     );
   }
 
-  if (accessDenied || roleSlug !== allowedRole) {
+  if (accessDenied) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-semibold text-rose-500">
         Access denied for lead management.
@@ -270,7 +405,7 @@ export default function LeadManagementPage() {
     },
     {
       id: "Q-2025-771",
-      status: "SUBMITTED",
+      status: "Submitted",
       company: "ABC COMPANY",
       client: "ABC COMPANY",
       leadId: "251110",
@@ -279,7 +414,7 @@ export default function LeadManagementPage() {
     },
     {
       id: "Q-2025-668",
-      status: "SUBMITTED",
+      status: "Submitted",
       company: "ABC COMPANY",
       client: "ABC COMPANY",
       leadId: "251109",
@@ -537,6 +672,18 @@ export default function LeadManagementPage() {
                       >
                         Move to approval
                       </button>
+                      <button
+                        onClick={() => handleOpenOrderModal(q)}
+                        className="rounded-full bg-indigo-500 px-3 py-1 text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-400"
+                      >
+                        Order sheet
+                      </button>
+                      <button
+                        onClick={() => handlePrintQuote(q)}
+                        className="rounded-full bg-white px-3 py-1 text-indigo-700 shadow-sm transition hover:bg-indigo-50"
+                      >
+                        Print / PDF
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -557,11 +704,197 @@ export default function LeadManagementPage() {
               </button>
             </div>
             <p className="mt-3 text-sm text-slate-600">
-              View PO received, dispatch, and installation readiness for your live orders.
+              ViewPO Received, dispatch, and installation readiness for your live orders.
             </p>
           </div>
         )}
       </main>
+
+      {showOrderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 py-6">
+          <div className="relative max-h-[90vh] w-full max-w-4xl overflow-auto rounded-3xl bg-white p-6 shadow-2xl shadow-slate-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">Create Order Sheet</h3>
+                {selectedQuotationForOrder && (
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    From {selectedQuotationForOrder.id} · {selectedQuotationForOrder.company}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={handleCloseOrderModal}
+                className="rounded-full border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-4 text-sm font-semibold text-slate-700">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="space-y-2">
+                  <span>Model</span>
+                  <input
+                    value={orderForm.model}
+                    onChange={(e) => handleOrderFieldChange("model", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span>Total Price</span>
+                  <input
+                    value={orderForm.totalPrice}
+                    onChange={(e) => handleOrderFieldChange("totalPrice", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+              </div>
+
+              <label className="space-y-2">
+                <span>Quantity</span>
+                <input
+                  value={orderForm.quantity}
+                  onChange={(e) => handleOrderFieldChange("quantity", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span>Customer Name</span>
+                <input
+                  value={orderForm.customerName}
+                  onChange={(e) => handleOrderFieldChange("customerName", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="space-y-2">
+                  <span>GST No.</span>
+                  <input
+                    value={orderForm.gstNumber}
+                    onChange={(e) => handleOrderFieldChange("gstNumber", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span>Contact Person</span>
+                  <input
+                    value={orderForm.contactPerson}
+                    onChange={(e) => handleOrderFieldChange("contactPerson", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+              </div>
+
+              <label className="space-y-2">
+                <span>Billing Address</span>
+                <textarea
+                  rows={2}
+                  value={orderForm.billingAddress}
+                  onChange={(e) => handleOrderFieldChange("billingAddress", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span>Shipping Address</span>
+                  <button
+                    onClick={handleCopyBilling}
+                    className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    Copy billing → shipping
+                  </button>
+                </div>
+                <textarea
+                  rows={2}
+                  value={orderForm.shippingAddress}
+                  onChange={(e) => handleOrderFieldChange("shippingAddress", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
+
+              <label className="space-y-2">
+                <span>Discount (from Quotation)</span>
+                <input
+                  value={orderForm.discount}
+                  onChange={(e) => handleOrderFieldChange("discount", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label className="space-y-2">
+                  <span>Payment Method</span>
+                  <input
+                    value={orderForm.paymentMethod}
+                    onChange={(e) => handleOrderFieldChange("paymentMethod", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span>Delivery Timeline</span>
+                  <input
+                    value={orderForm.deliveryTimeline}
+                    onChange={(e) => handleOrderFieldChange("deliveryTimeline", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span>Shipment Type</span>
+                  <input
+                    value={orderForm.shipmentType}
+                    onChange={(e) => handleOrderFieldChange("shipmentType", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+              </div>
+
+              <label className="space-y-2">
+                <span>Special Request</span>
+                <textarea
+                  rows={2}
+                  value={orderForm.specialRequest}
+                  onChange={(e) => handleOrderFieldChange("specialRequest", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span>Terms / Notes</span>
+                <textarea
+                  rows={3}
+                  value={orderForm.terms}
+                  onChange={(e) => handleOrderFieldChange("terms", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-2 text-sm font-semibold">
+                <button
+                  onClick={handleCloseOrderModal}
+                  className="rounded-full border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleOrderSubmit("submit")}
+                  className="rounded-full bg-slate-900 px-4 py-2 text-white shadow-sm transition hover:bg-slate-800"
+                >
+                  Create &amp; Submit
+                </button>
+                <button
+                  onClick={() => handleOrderSubmit("draft")}
+                  className="rounded-full bg-indigo-500 px-4 py-2 text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-400"
+                >
+                  Create
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div className="pointer-events-auto fixed bottom-6 right-6 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-lg shadow-slate-200">
