@@ -112,6 +112,7 @@ export default function DashboardPage() {
     new Date().toISOString().split("T")[0],
   );
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isAdminRole, setIsAdminRole] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const router = useRouter();
@@ -127,6 +128,7 @@ export default function DashboardPage() {
         user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
         role === "super_admin";
       setIsSuperAdmin(superAdmin);
+      setIsAdminRole(superAdmin || role === "admin");
     });
     return () => {
       active = false;
@@ -171,6 +173,7 @@ export default function DashboardPage() {
         showSettings={isSuperAdmin}
         showUserCreation={isSuperAdmin}
         showLeadManagement
+        showCustomerVendorManagement={isAdminRole}
       />
 
       <main className="flex-1 p-10">

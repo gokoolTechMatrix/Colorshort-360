@@ -113,6 +113,26 @@ const baseLinks: SidebarLink[] = [
     ),
   },
   {
+    label: "Customer & Vendor Management",
+    href: "/customer-vendor-management",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-5 w-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      >
+        <path d="M6 9a3 3 0 1 1 6 0" />
+        <path d="M16 9a3 3 0 1 1 6 0" />
+        <path d="M2 20a6 6 0 0 1 12 0" />
+        <path d="M14 20a6 6 0 0 1 10 0" />
+        <path d="M12 14h4" />
+      </svg>
+    ),
+  },
+  {
     label: "Reports & Exports",
     href: "#",
     icon: (
@@ -160,6 +180,7 @@ export type DashboardSidebarProps = {
   showLeadManagement?: boolean;
   linksOverride?: SidebarLink[];
   onLinkClick?: (href: string) => void;
+  showCustomerVendorManagement?: boolean;
 };
 
 export function DashboardSidebar({
@@ -174,6 +195,7 @@ export function DashboardSidebar({
   showLeadManagement = true,
   linksOverride,
   onLinkClick,
+  showCustomerVendorManagement = false,
 }: DashboardSidebarProps) {
   const router = useRouter();
 
@@ -183,6 +205,7 @@ export function DashboardSidebar({
       if (link.label === "Settings") return showSettings;
       if (link.label === "User Creation") return showUserCreation;
       if (link.label === "Lead Management") return showLeadManagement;
+      if (link.label === "Customer & Vendor Management") return showCustomerVendorManagement;
       return true;
     });
 
@@ -235,7 +258,7 @@ export function DashboardSidebar({
               }}
             >
               <span className="text-slate-400">{link.icon}</span>
-              {!collapsed && <span>{link.label}</span>}
+              {!collapsed && <span className="whitespace-nowrap">{link.label}</span>}
             </button>
           );
         })}

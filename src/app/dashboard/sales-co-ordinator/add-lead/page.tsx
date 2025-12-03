@@ -3,8 +3,8 @@
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getRoleFromEmail } from "@/lib/role-map";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 const SUPER_ADMIN_EMAIL =
@@ -19,39 +19,37 @@ type StoredLead = {
   companyName: string;
   contactPerson: string;
   phone: string;
-  email: string;
+  email?: string;
   state: string;
-  city: string;
-  address: string;
-  gst: string;
+  city?: string;
   source: string;
-  model: string;
+  model?: string;
   purpose: string;
   priority: string;
-  expectedQty: string;
+  expectedQty?: string;
 };
 
-const LEADS_KEY = "sc_leads";
-
-const loadStoredLeads = (): StoredLead[] => {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(LEADS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as StoredLead[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch {
-    return [];
-  }
+type ApiLead = {
+  id: number | string;
+  lead_source_?: string | null;
+  customer_name?: string | null;
+  contact_person?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  state?: string | null;
+  purpose_switch?: string | null;
+  hot_cold_flag?: string | null;
+  status?: string | null;
+  created_at?: string | null;
 };
 
 export default function SalesCoordinatorAddLeadPage() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [profileName, setProfileName] = useState("Team Member");
-  void profileName;
+  const [roleSlug, setRoleSlug] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [companyLogo, setCompanyLogo] = useState("/image.png");
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -59,6 +57,45 @@ export default function SalesCoordinatorAddLeadPage() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "new-lead" | "my-leads" | "reports">("new-lead");
   const [leads, setLeads] = useState<StoredLead[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingLeads, setIsLoadingLeads] = useState(false);
+  const [leadsError, setLeadsError] = useState<string | null>(null);
+
+  const fetchLeads = useCallback(async () => {
+    setIsLoadingLeads(true);
+    setLeadsError(null);
+    try {
+      const response = await fetch("/api/leads", { cache: "no-store" });
+      const payload = (await response.json()) as { leads?: ApiLead[]; message?: string };
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Unable to fetch leads");
+      }
+
+      const mapped: StoredLead[] =
+        (payload.leads ?? []).map((lead) => ({
+          id: String(lead.id ?? `temp-${Math.random().toString(36).slice(2)}`),
+          createdAt: lead.created_at ?? new Date().toISOString(),
+          companyName: lead.customer_name ?? "Customer",
+          contactPerson: lead.contact_person ?? "Contact",
+          phone: lead.phone ?? "No phone",
+          email: lead.email ?? "",
+          state: lead.state ?? "NA",
+          city: "",
+          source: lead.lead_source_ ?? "App",
+          model: "",
+          purpose: lead.purpose_switch ?? lead.status ?? "Requirement",
+          priority: lead.hot_cold_flag ?? "Warm",
+          expectedQty: "",
+        })) ?? [];
+
+      setLeads(mapped);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to fetch leads";
+      setLeadsError(message);
+    } finally {
+      setIsLoadingLeads(false);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -81,16 +118,20 @@ export default function SalesCoordinatorAddLeadPage() {
       const derivedName =
         (user.user_metadata?.full_name as string | undefined) ?? "Team Member";
       setProfileName(derivedName);
+      setRoleSlug(slug || null);
 
-      if (
-        user.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
-        slug === "super_admin"
-      ) {
-        router.replace("/dashboard/admin");
-        return;
-      }
+      const allowedCreators = new Set([
+        "super-admin",
+        "super_admin",
+        "admin",
+        "sales-manager",
+        "sales-co-ordinator",
+        "sales-executive",
+      ]);
 
-      if (slug !== "sales-co-ordinator") {
+      const isSuperAdminEmail = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+
+      if (!isSuperAdminEmail && slug && !allowedCreators.has(slug)) {
         router.replace(slug ? `/dashboard/${slug}` : "/dashboard");
         return;
       }
@@ -147,9 +188,14 @@ export default function SalesCoordinatorAddLeadPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    const stored = loadStoredLeads();
-    setLeads(stored);
-  }, []);
+    fetchLeads();
+  }, [fetchLeads]);
+
+  useEffect(() => {
+    if (activeTab === "my-leads") {
+      fetchLeads();
+    }
+  }, [activeTab, fetchLeads]);
 
   const handleLogout = async () => {
     if (isSigningOut) return;
@@ -169,6 +215,8 @@ export default function SalesCoordinatorAddLeadPage() {
     );
   }
 
+  const addLeadBasePath = `/dashboard/${roleSlug || "sales-co-ordinator"}/add-lead`;
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       <DashboardSidebar
@@ -177,7 +225,7 @@ export default function SalesCoordinatorAddLeadPage() {
         companyLogo={companyLogo}
         onLogout={handleLogout}
         isSigningOut={isSigningOut}
-        activeHref="/dashboard/sales-co-ordinator/add-lead"
+        activeHref={pathname ?? addLeadBasePath}
         showLeadManagement
       />
 
@@ -245,7 +293,7 @@ export default function SalesCoordinatorAddLeadPage() {
                 tone="blue"
                 title="New Client"
                 description="Create a lead for a completely new customer. Add company information, contact details, and requirements."
-                onSelect={() => router.push("/dashboard/sales-co-ordinator/add-lead/new")}
+                onSelect={() => router.push(`${addLeadBasePath}/new`)}
                 icon={
                   <svg
                     viewBox="0 0 24 24"
@@ -266,7 +314,7 @@ export default function SalesCoordinatorAddLeadPage() {
                 tone="emerald"
                 title="Existing Client"
                 description="Create a lead for a customer who has worked with us. Search the database and set up the new opportunity quickly."
-                onSelect={() => router.push("/dashboard/sales-co-ordinator/add-lead/new")}
+                onSelect={() => router.push(`${addLeadBasePath}/new`)}
                 icon={
                   <svg
                     viewBox="0 0 24 24"
@@ -296,20 +344,18 @@ export default function SalesCoordinatorAddLeadPage() {
                 </h2>
               </div>
               <button
-                onClick={() => {
-                  if (isRefreshing) return;
+                onClick={async () => {
+                  if (isRefreshing || isLoadingLeads) return;
                   setIsRefreshing(true);
-                  setTimeout(() => {
-                    setLeads(loadStoredLeads());
-                    setIsRefreshing(false);
-                  }, 600);
+                  await fetchLeads();
+                  setIsRefreshing(false);
                 }}
                 className="flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-[1px] hover:bg-slate-50 disabled:opacity-60"
-                disabled={isRefreshing}
+                disabled={isRefreshing || isLoadingLeads}
               >
                 <svg
                   viewBox="0 0 24 24"
-                  className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                  className={`h-4 w-4 ${isRefreshing || isLoadingLeads ? "animate-spin" : ""}`}
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.8"
@@ -322,11 +368,22 @@ export default function SalesCoordinatorAddLeadPage() {
                 Refresh
               </button>
             </div>
-            {leads.length === 0 ? (
+            {leadsError && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+                {leadsError}
+              </div>
+            )}
+            {isLoadingLeads && (
+              <div className="rounded-2xl border border-slate-200 bg-white/60 p-6 text-sm text-slate-600">
+                Loading leads...
+              </div>
+            )}
+            {leads.length === 0 && !isLoadingLeads && !leadsError ? (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 p-6 text-sm text-slate-600">
                 No leads yet. Create one to see it here.
               </div>
             ) : (
+              !isLoadingLeads && !leadsError &&
               <div className="grid gap-4 lg:grid-cols-2">
                 {leads.map((lead) => (
                   <div
@@ -346,7 +403,7 @@ export default function SalesCoordinatorAddLeadPage() {
                           {lead.companyName}
                         </p>
                         <p className="text-sm text-slate-600">
-                          {lead.contactPerson} · {lead.phone || "No phone"}
+                          {lead.contactPerson} | {lead.phone || "No phone"}
                         </p>
                       </div>
                       <span
@@ -362,12 +419,12 @@ export default function SalesCoordinatorAddLeadPage() {
                       </span>
                     </div>
                     <div className="relative mt-4 grid grid-cols-2 gap-3 text-sm text-slate-700">
-                      <InfoPill label="Source" value={lead.source || "—"} />
-                      <InfoPill label="Model" value={lead.model || "—"} />
-                      <InfoPill label="Purpose" value={lead.purpose || "—"} />
-                      <InfoPill label="Expected qty" value={lead.expectedQty || "—"} />
-                      <InfoPill label="State" value={lead.state || "—"} />
-                      <InfoPill label="City" value={lead.city || "—"} />
+                      <InfoPill label="Source" value={lead.source || "-"} />
+                      <InfoPill label="Model" value={lead.model || "-"} />
+                      <InfoPill label="Purpose" value={lead.purpose || "-"} />
+                      <InfoPill label="Expected qty" value={lead.expectedQty || "-"} />
+                      <InfoPill label="State" value={lead.state || "-"} />
+                      <InfoPill label="City" value={lead.city || "-"} />
                     </div>
                   </div>
                 ))}

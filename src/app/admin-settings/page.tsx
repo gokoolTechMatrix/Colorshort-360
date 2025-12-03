@@ -388,6 +388,7 @@ export default function AdminSettingsPage() {
         activeHref="/admin-settings"
         showSettings
         showUserCreation
+        showCustomerVendorManagement
       />
 
       <main className="flex-1 px-4 py-8 md:px-8">
