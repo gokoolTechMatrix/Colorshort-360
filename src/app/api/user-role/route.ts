@@ -27,8 +27,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ role: data.role });
     }
 
-    const { data: user } = await supabase.auth.admin.getUserById(userId);
-    const mappedRole = getRoleFromEmail(user?.email);
+    const { data: userResult } = await supabase.auth.admin.getUserById(userId);
+    const mappedRole = getRoleFromEmail(userResult?.user?.email ?? undefined);
 
     return NextResponse.json({ role: mappedRole ?? null });
   } catch (error) {

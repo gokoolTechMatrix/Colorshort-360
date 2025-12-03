@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 
 
@@ -418,8 +419,8 @@ export default function ProductListPage() {
     )}`;
 
     try {
-      const { jsPDF } = await import("jspdf");
-      const doc = new jsPDF();
+      const { default: JsPDF } = await import("jspdf");
+      const doc = new JsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const marginX = 14;
@@ -496,8 +497,8 @@ export default function ProductListPage() {
 
         let x = marginX;
 
-        wrappedCells.forEach((lines, index) => {
-          lines.forEach((line, lineIndex) => {
+        wrappedCells.forEach((lines: string[], index) => {
+          lines.forEach((line: string, lineIndex: number) => {
             doc.text(line, x, cursorY + lineIndex * lineHeight);
           });
 

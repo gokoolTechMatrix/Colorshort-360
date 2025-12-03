@@ -39,25 +39,7 @@ type Lead = {
   source: string;
   stage: LeadStage;
   temperature: LeadTemperature;
-  value: string;
-  nextAction: string;
-  nextAt: string;
-  special?: boolean;
-};
-
-const SUPER_ADMIN_EMAIL =
-  process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() ?? "admin@qube.com";
-
-type RoleCaps = {
-  canAssign: boolean;
-  canApproveQuotation: boolean;
-  canRequestQuotation: boolean;
-  canClose: boolean;
-  canChangeStage: boolean;
-  canCreate: boolean;
-  readOnly: boolean;
-  viewFilter: (lead: Lead, profileName: string) => boolean;
-  deny?: boolean;
+  statusTag?: string;
 };
 
 const roleCaps: Record<string, RoleCaps> = {
@@ -430,77 +412,35 @@ export default function LeadManagementPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [isRefreshingLeads, setIsRefreshingLeads] = useState(false);
-  const [serviceNotifications, setServiceNotifications] = useState<
-    Array<{ id: string; message: string; time: string }>
-  >([]);
-  const isFinanceRole =
-    profileRole === "finance" ||
-    profileRole === "accountant" ||
-    profileRole === "super_admin";
-  const [payments, setPayments] = useState<
-    Array<{ id: string; leadId: string; amount: string; mode: string; date: string }>
-  >([
-    { id: "P-1001", leadId: "L-1222", amount: "₹12.5L", mode: "NEFT", date: "2025-11-25" },
-    { id: "P-1002", leadId: "L-1201", amount: "₹8.5L", mode: "UPI", date: "2025-11-24" },
-  ]);
-  const [credits, setCredits] = useState<
-    Array<{ id: string; leadId: string; amount: string; date: string }>
-  >([{ id: "CN-201", leadId: "L-1222", amount: "₹65,000", date: "2025-11-26" }]);
-  const [debits, setDebits] = useState<
-    Array<{ id: string; leadId: string; amount: string; date: string }>
-  >([{ id: "DN-310", leadId: "L-1222", amount: "₹24,000", date: "2025-11-26" }]);
+  const [roleSlug, setRoleSlug] = useState<string | null>(null);
+  const [isCheckingRole, setIsCheckingRole] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const allowedRole = "sales-executive";
+
+  const filteredLeads = useMemo(() => {
+    if (selectedFilter === "All") return leads;
+    return leads.filter((lead) => lead.stage === selectedFilter);
+  }, [leads, selectedFilter]);
 
   const caps = roleCaps[profileRole ?? ""] ?? roleCaps["super_admin"];
   const isServiceRole = (profileRole ?? "").startsWith("service");
   const activeStageOrder = isServiceRole ? serviceStageOrder : salesStageOrder;
 
   useEffect(() => {
-    let active = true;
-    const hydrate = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!active) return;
-      if (!data.session) {
-        router.replace("/login");
-        return;
-      }
-      const user = data.session.user;
-      const derivedRole =
-        (user.user_metadata?.role as string | undefined)?.toLowerCase() ??
-        getRoleFromEmail(user.email)?.toLowerCase() ??
+    const detectRole = () => {
+      if (typeof window === "undefined") return allowedRole;
+      const stored =
+        window.localStorage.getItem("role_slug") ||
+        window.localStorage.getItem("role") ||
+        window.sessionStorage.getItem("role_slug") ||
         "";
-      const slug = derivedRole
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-      const isSuperAdmin =
-        user.email?.toLowerCase() === SUPER_ADMIN_EMAIL || slug === "super_admin";
-      if (!isSuperAdmin && !allowedRoles.has(slug)) {
-        router.replace("/login");
-        return;
-      }
-      setProfileRole(isSuperAdmin ? "super_admin" : slug);
-      const derivedName =
-        (user.user_metadata?.full_name as string | undefined) ?? "Team Member";
-      setProfileName(derivedName);
-      setIsCheckingAuth(false);
+      const normalized = stored?.toLowerCase().replace(/[^a-z0-9-]/g, "") || "";
+      return normalized || allowedRole;
     };
-    hydrate();
-    return () => {
-      active = false;
-    };
-  }, [router, supabase]);
-
-  useEffect(() => {
-    fetch("/api/company-settings")
-      .then(async (response) => {
-        if (!response.ok) return;
-        const payload = (await response.json()) as {
-          settings?: { logo_url?: string };
-        };
-        if (payload?.settings?.logo_url) {
-          setCompanyLogo(payload.settings.logo_url);
-        }
-      })
-      .catch(() => {});
+    const role = detectRole();
+    setRoleSlug(role);
+    setAccessDenied(role !== allowedRole);
+    setIsCheckingRole(false);
   }, []);
 
   useEffect(() => {
@@ -555,31 +495,6 @@ export default function LeadManagementPage() {
     }
   };
 
-  if (isCheckingAuth) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-semibold text-slate-500">
-        Loading leads…
-      </div>
-    );
-  }
-  if (
-    !profileRole ||
-    (!allowedRoles.has(profileRole) && profileRole !== "super_admin") ||
-    caps.deny
-  ) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-semibold text-rose-500">
-        Access denied for lead management.
-      </div>
-    );
-  }
-
-  const filteredLeads = leads.filter((lead) => {
-    if (selectedStage !== "All" && lead.stage !== selectedStage) return false;
-    if (selectedTemp !== "All" && lead.temperature !== selectedTemp) return false;
-    return caps.viewFilter(lead, profileName);
-  });
-
   const handleStageChange = (leadId: string, stage: LeadStage) => {
     if (!caps.canChangeStage && !caps.canApproveQuotation && !caps.canRequestQuotation && !caps.canClose) {
       return;
@@ -619,129 +534,41 @@ export default function LeadManagementPage() {
     setToast(`Lead ${leadId} assigned to ${owner}`);
   };
 
-  const handleRejectLead = (leadId: string) => {
-    if (!caps.canApproveQuotation) return;
-    handleStageChange(leadId, "In Discussion");
-    setToast(`Lead ${leadId} sent back for revision`);
-  };
-
-  const handleNewLead = () => {
-    const rawRole = profileRole || "sales-co-ordinator";
-    const targetRole =
-      rawRole
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "") || "sales-co-ordinator";
-    router.push(`/dashboard/${targetRole}/add-lead/new`);
-  };
-
-  const handleNeedInfo = (leadId: string) => {
-    if (!caps.canApproveQuotation) return;
-    setToast(`Requested more info for ${leadId}`);
-  };
-
-  const renderServiceActions = (lead: Lead): ReactNode => {
-    if (!isServiceRole || caps.readOnly) return null;
-    const actions: ReactNode[] = [];
-    const addAction = (label: string, stage: LeadStage, className: string) => {
-      if (!caps.canChangeStage && !caps.canRequestQuotation && !caps.canApproveQuotation && !caps.canClose) return;
-      actions.push(
-        <button
-          key={`${lead.id}-${label}`}
-          className={className}
-          onClick={() => handleStageChange(lead.id, stage)}
-        >
-          {label}
-        </button>,
-      );
+  const handleReceiveLead = () => {
+    const nextId = `L-${Math.floor(Math.random() * 9000 + 1000)}`;
+    const newLead: Lead = {
+      id: nextId,
+      name: "New Prospect",
+      company: "Assigned Company",
+      modelLabel: "Model",
+      modelValue: "Not set",
+      nextAction: "Intro call",
+      stage: "New",
+      temperature: "Warm",
+      statusTag: "assigned",
+      owner: "You",
     };
-
-    if (caps.canAssign) {
-      actions.push(
-        <button
-          key={`${lead.id}-assign`}
-          className="rounded-full bg-indigo-500 px-3 py-1.5 text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-400"
-          onClick={() => handleAssign(lead.id, "Service Engineer")}
-        >
-          Assign Engineer
-        </button>,
-      );
-    }
-
-    switch (lead.stage) {
-      case "Ticket Created":
-      case "Assigned":
-        addAction(
-          "Mark On the Way",
-          "On the Way",
-          "rounded-full bg-cyan-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:bg-cyan-400",
-        );
-        break;
-      case "On the Way":
-        addAction(
-          "Start Work",
-          "Work Started",
-          "rounded-full bg-emerald-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-400",
-        );
-        break;
-      case "Work Started":
-        addAction(
-          "Spare Required",
-          "Spare Required",
-          "rounded-full bg-amber-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:bg-amber-400",
-        );
-        addAction(
-          "On Hold",
-          "On Hold",
-          "rounded-full bg-slate-700 px-3 py-1.5 text-white shadow-sm shadow-slate-300 transition hover:bg-slate-600",
-        );
-        addAction(
-          "Work Completed",
-          "Work Completed",
-          "rounded-full bg-emerald-600 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-500",
-        );
-        break;
-      case "Spare Required":
-      case "On Hold":
-        addAction(
-          "Resume Work",
-          "Work Started",
-          "rounded-full bg-blue-500 px-3 py-1.5 text-white shadow-sm shadow-blue-200 transition hover:bg-blue-400",
-        );
-        addAction(
-          "Work Completed",
-          "Work Completed",
-          "rounded-full bg-emerald-600 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-500",
-        );
-        break;
-      case "Work Completed":
-        addAction(
-          "Request Approval",
-          "Awaiting Approval",
-          "rounded-full bg-purple-500 px-3 py-1.5 text-white shadow-sm shadow-purple-200 transition hover:bg-purple-400",
-        );
-        break;
-      case "Awaiting Approval":
-        if (caps.canClose || caps.canApproveQuotation) {
-          addAction(
-            "Approve & Close",
-            "Closed",
-            "rounded-full bg-emerald-600 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-500",
-          );
-          addAction(
-            "Reopen Work",
-            "Work Started",
-            "rounded-full bg-rose-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:bg-rose-400",
-          );
-        }
-        break;
-      default:
-        break;
-    }
-
-    if (!actions.length) return null;
-    return <div className="flex flex-wrap gap-2 text-xs font-semibold">{actions}</div>;
+    setLeads((prev) => [newLead, ...prev]);
+    setSelectedLeadId(newLead.id);
+    setToast("New lead received");
   };
+
+  const handleOpenLead = (leadId: string) => {
+    setSelectedLeadId(leadId);
+    setToast(`Opening ${leadId}`);
+  };
+
+  const handleNextAction = () => {
+  if (!selectedLead) return;
+  const nextStage: LeadStage =
+    selectedLead.stage === "New"
+      ? "Contacted"
+      : selectedLead.stage === "Contacted"
+        ? "Quotation Sent"
+        : "Pending Approval";
+  handleStageChange(selectedLead.id, nextStage);
+  setToast("Next action logged");
+};
 
   const handleFinanceAction = (leadId: string, action: string) => {
     if (!isFinanceRole) return;
@@ -805,11 +632,35 @@ export default function LeadManagementPage() {
     { label: "At-risk & overdue", value: atRiskLeads.length, subLabel: `${overdueFollowups.length} follow-ups overdue` },
     { label: "Hot leads", value: hotLeads.length, subLabel: "Prioritize demos & quotes" },
   ];
-  const kpiStyles = [
-    { bg: "bg-sky-50", border: "border-sky-100", accent: "text-sky-700" },
-    { bg: "bg-amber-50", border: "border-amber-100", accent: "text-amber-700" },
-    { bg: "bg-emerald-50", border: "border-emerald-100", accent: "text-emerald-700" },
-    { bg: "bg-indigo-50", border: "border-indigo-100", accent: "text-indigo-700" },
+
+  const quotations = [
+    {
+      id: "Q-2025-729",
+      status: "PO RECEIVED",
+      company: "Matrix Smart",
+      client: "Matrix Smart",
+      leadId: "251111",
+      date: "21/11/2025",
+      price: "₹11,80,000",
+    },
+    {
+      id: "Q-2025-771",
+      status: "SUBMITTED",
+      company: "ABC COMPANY",
+      client: "ABC COMPANY",
+      leadId: "251110",
+      date: "21/11/2025",
+      price: "₹3,98,000",
+    },
+    {
+      id: "Q-2025-668",
+      status: "SUBMITTED",
+      company: "ABC COMPANY",
+      client: "ABC COMPANY",
+      leadId: "251109",
+      date: "21/11/2025",
+      price: "₹0",
+    },
   ];
 
   return (
@@ -829,19 +680,30 @@ export default function LeadManagementPage() {
         }
       />
 
-      <main className="flex-1 px-6 py-8">
-        <header className="relative mb-6 overflow-hidden rounded-[32px] bg-linear-to-br from-[#0ea5e9] via-[#2563eb] to-[#05c3de] p-6 text-white shadow-xl shadow-cyan-200/60">
+      <main className="flex-1 px-4 py-6 sm:px-8">
+        <header className="relative mb-5 overflow-hidden rounded-3xl bg-gradient-to-r from-[#2f7bff] via-[#149dff] to-[#05c6c8] p-6 text-white shadow-[0_25px_55px_rgba(20,157,255,0.35)]">
           <div className="pointer-events-none absolute inset-0 opacity-70">
             <div className="absolute -left-10 -top-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
             <div className="absolute -right-10 bottom-0 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
             <div className="absolute left-1/3 top-4 h-28 w-28 rounded-full bg-cyan-300/20 blur-2xl" />
           </div>
-          <div className="relative flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-2">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-sm backdrop-blur">
-                {isServiceRole ? "Service" : "Lead management"}
-                <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-cyan-700">
-                  {(profileRole ?? "").replace(/-/g, " ")}
+          <div className="relative flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/80">Sales Command</p>
+              <h1 className="mt-1 text-3xl font-semibold leading-tight">Naveen, keep momentum on live deals.</h1>
+              <p className="text-sm text-white/85">Track funnel health, follow-ups, and top opportunities.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+              {[
+                { label: "Leads today", value: "12" },
+                { label: "Win rate", value: "28%" },
+                { label: "Follow-ups pending", value: "7" },
+              ].map((pill) => (
+                <span
+                  key={pill.label}
+                  className="rounded-full bg-white/20 px-3 py-2 text-white shadow-inner shadow-cyan-200/40 backdrop-blur"
+                >
+                  {pill.label}: {pill.value}
                 </span>
               </span>
               <h1 className="text-3xl font-semibold leading-tight text-white">
@@ -1032,450 +894,178 @@ export default function LeadManagementPage() {
           </div>
         </section>
 
-        {isFinanceRole && (
-          <section className="mt-6 rounded-3xl border border-slate-100 bg-white/90 p-4 shadow-sm backdrop-blur">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
-                  Finance cockpit
-                </p>
-                <p className="text-sm text-slate-600">
-                  Payments, credit notes, and debit notes for won/order-linked leads.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                <button
-                  onClick={addPayment}
-                  className="rounded-full bg-linear-to-r from-emerald-500 to-teal-500 px-4 py-2 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
-                >
-                  + Record payment
-                </button>
-                <button
-                  onClick={addCreditNote}
-                  className="rounded-full bg-linear-to-r from-amber-500 to-orange-500 px-4 py-2 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
-                >
-                  + Credit note
-                </button>
-                <button
-                  onClick={addDebitNote}
-                  className="rounded-full bg-linear-to-r from-rose-500 to-red-500 px-4 py-2 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
-                >
-                  + Debit note
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-4 lg:grid-cols-3">
-              <div className="rounded-2xl border border-slate-100 bg-linear-to-br from-slate-50 to-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Payments
-                  </p>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
-                    {payments.length}
-                  </span>
-                </div>
-                <div className="space-y-2 text-sm text-slate-700">
-                  {payments.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-[0_4px_12px_rgba(0,0,0,0.03)]"
-                    >
-                      <div>
-                        <p className="font-semibold text-slate-900">{p.amount}</p>
-                        <p className="text-xs text-slate-500">
-                          {p.mode} · {p.date} · {p.leadId}
-                        </p>
-                      </div>
-                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-600">
-                        Receipt
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-100 bg-linear-to-br from-slate-50 to-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Credit notes
-                  </p>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
-                    {credits.length}
-                  </span>
-                </div>
-                <div className="space-y-2 text-sm text-slate-700">
-                  {credits.map((c) => (
-                    <div
-                      key={c.id}
-                      className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-[0_4px_12px_rgba(0,0,0,0.03)]"
-                    >
-                      <div>
-                        <p className="font-semibold text-slate-900">{c.amount}</p>
-                        <p className="text-xs text-slate-500">
-                          {c.date} · {c.leadId}
-                        </p>
-                      </div>
-                      <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-600">
-                        Credit
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-100 bg-linear-to-br from-slate-50 to-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Debit notes
-                  </p>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
-                    {debits.length}
-                  </span>
-                </div>
-                <div className="space-y-2 text-sm text-slate-700">
-                  {debits.map((d) => (
-                    <div
-                      key={d.id}
-                      className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-[0_4px_12px_rgba(0,0,0,0.03)]"
-                    >
-                      <div>
-                        <p className="font-semibold text-slate-900">{d.amount}</p>
-                        <p className="text-xs text-slate-500">
-                          {d.date} · {d.leadId}
-                        </p>
-                      </div>
-                      <span className="rounded-full bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-600">
-                        Debit
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-          </>
-        )}
-        <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-100 bg-white/80 p-4 shadow-sm backdrop-blur">
-          <div className="flex flex-wrap items-center gap-2">
-            {(["All", ...activeStageOrder] as const).map((stage) => (
-              <button
-                key={stage}
-                onClick={() => setSelectedStage(stage)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                  selectedStage === stage
-                    ? "bg-cyan-500 text-white shadow-sm shadow-cyan-200"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {stage}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            {(["All", "Hot", "Warm", "Cold"] as const).map((temp) => (
-              <button
-                key={temp}
-                onClick={() => setSelectedTemp(temp)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                  selectedTemp === temp
-                    ? "bg-amber-500 text-white shadow-sm shadow-amber-200"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {temp}
-              </button>
-            ))}
-            <div className="ml-3 flex items-center rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 shadow-inner">
-              <button
-                className={`rounded-full px-3 py-1 ${
-                  viewMode === "table" ? "bg-cyan-500 text-white" : ""
-                }`}
-                onClick={() => setViewMode("table")}
-              >
-                Table
-              </button>
-              <button
-                className={`rounded-full px-3 py-1 ${
-                  viewMode === "pipeline" ? "bg-cyan-500 text-white" : ""
-                }`}
-                onClick={() => setViewMode("pipeline")}
-              >
-                Pipeline
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-6 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
-          {viewMode === "table" ? (
-            <div className="overflow-auto">
-              <table className="min-w-full text-sm text-slate-700">
-                <thead>
-                  <tr className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                    {[
-                      "Lead",
-                      "Owner",
-                      "Role",
-                      "Zone/State",
-                      "Product",
-                      "Stage",
-                      "Temperature",
-                      "Next Action",
-                      "Actions",
-                    ].map((header) => (
-                      <th key={header} className="px-3 py-3 text-left">
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredLeads.map((lead) => (
-                    <tr key={lead.id} className="hover:bg-slate-50/60">
-                      <td className="px-3 py-3 font-semibold text-slate-900">
-                        {lead.customer}{" "}
-                        <span className="text-xs font-medium text-slate-500">
-                          ({lead.id})
-                        </span>
-                        <div className="text-xs text-slate-500">
-                          {lead.company}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3">{lead.owner}</td>
-                      <td className="px-3 py-3 capitalize">{lead.role.replace(/-/g, " ")}</td>
-                      <td className="px-3 py-3">
-                        {lead.zone} / {lead.state}
-                      </td>
-                      <td className="px-3 py-3">{lead.product}</td>
-                      <td className="px-3 py-3">
-                        <span className="rounded-full bg-cyan-50 px-2 py-1 text-xs font-semibold text-cyan-700">
-                          {lead.stage}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                            lead.temperature === "Hot"
-                              ? "bg-rose-50 text-rose-600"
-                              : lead.temperature === "Warm"
-                                ? "bg-amber-50 text-amber-600"
-                                : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {lead.temperature}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-xs text-slate-600">
-                        <div className="font-semibold text-slate-900">
-                          {lead.nextAction}
-                        </div>
-                        <div className="text-slate-500">{lead.nextAt}</div>
-                      </td>
-                      <td className="px-3 py-3">
-                        {isServiceRole ? (
-                          renderServiceActions(lead)
-                        ) : (
-                          <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                            {caps.canAssign && !caps.readOnly && (
-                              <button
-                                className="rounded-full bg-indigo-500 px-3 py-1.5 text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-400"
-                                onClick={() => handleAssign(lead.id, "Sales Executive")}
-                              >
-                                Assign
-                              </button>
-                            )}
-                            {caps.canApproveQuotation && lead.stage === "Pending Approval" && !caps.readOnly && (
-                              <button
-                                className="rounded-full bg-emerald-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-400"
-                                onClick={() => handleStageChange(lead.id, "Approved")}
-                              >
-                                Approve
-                              </button>
-                            )}
-                            {lead.stage === "In Discussion" && caps.canRequestQuotation && !caps.readOnly && (
-                              <button
-                                className="rounded-full bg-amber-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:bg-amber-400"
-                                onClick={() => handleStageChange(lead.id, "Pending Approval")}
-                              >
-                                Request Quote
-                              </button>
-                            )}
-                            {lead.stage !== "Won" && lead.stage !== "Lost" && caps.canClose && !caps.readOnly && (
-                              <>
-                                <button
-                                  className="rounded-full bg-emerald-600 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-500"
-                                  onClick={() => handleStageChange(lead.id, "Won")}
-                                >
-                                  Close Won
-                                </button>
-                                <button
-                                  className="rounded-full bg-rose-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:bg-rose-400"
-                                  onClick={() => handleStageChange(lead.id, "Lost")}
-                                >
-                                  Close Lost
-                                </button>
-                              </>
-                            )}
-                            {isFinanceRole && lead.stage === "Won" && (
-                              <>
-                                <button
-                                  className="rounded-full bg-linear-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:brightness-105"
-                                  onClick={() => handleFinanceAction(lead.id, "Invoice")}
-                                >
-                                  Invoice
-                                </button>
-                                <button
-                                  className="rounded-full bg-linear-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
-                                  onClick={() => handleFinanceAction(lead.id, "Payment receipt")}
-                                >
-                                  Record Payment
-                                </button>
-                                <button
-                                  className="rounded-full bg-linear-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
-                                  onClick={() => handleFinanceAction(lead.id, "Credit note")}
-                                >
-                                  Credit Note
-                                </button>
-                                <button
-                                  className="rounded-full bg-linear-to-r from-rose-500 to-red-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
-                                  onClick={() => handleFinanceAction(lead.id, "Debit note")}
-                                >
-                                  Debit Note
-                                </button>
-                                <button
-                                  className="rounded-full border border-cyan-200 bg-white px-3 py-1.5 text-cyan-700 shadow-sm transition hover:bg-cyan-50"
-                                  onClick={() => handleFinanceAction(lead.id, "Ledger view")}
-                                >
-                                  Ledger
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {pipelineColumns.map((column) => (
-                <div
-                  key={column.stage}
-                  className="rounded-3xl border border-slate-100 bg-white/80 p-4 shadow-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      {column.stage}
-                    </p>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
-                      {column.items.length}
-                    </span>
+            <section className="mt-5 grid gap-4 lg:grid-cols-3">
+              <div className="lg:col-span-2 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">My Leads</p>
                   </div>
-                  <div className="mt-3 space-y-3">
-                    {column.items.map((lead) => (
-                      <div
-                        key={lead.id}
-                        className="rounded-2xl border border-slate-100 bg-linear-to-br from-white to-cyan-50 p-3 shadow-sm"
-                      >
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-slate-900">
-                            {lead.customer}
-                          </p>
-                          <span className="text-xs font-semibold text-slate-500">
-                            {lead.value}
-                          </span>
+                  <button
+                    onClick={() => router.push("/dashboard/sales-co-ordinator/add-lead/new")}
+                    className="rounded-full bg-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition hover:bg-blue-400"
+                  >
+                    Add Lead
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {filteredLeads.map((lead) => (
+                    <div
+                      key={lead.id}
+                      className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">
+                            {lead.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{lead.name}</p>
+                            <p className="text-xs text-slate-500">Lead ID: {lead.id}</p>
+                          </div>
                         </div>
-                        <p className="text-xs text-slate-500">{lead.product}</p>
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-                          <span className="rounded-full bg-white px-2 py-1 text-slate-600">
-                            {lead.owner}
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                            {lead.modelLabel}: {lead.modelValue}
                           </span>
-                          <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-500">
-                            {lead.temperature}
-                          </span>
-                        </div>
-                        <div className="mt-2 text-xs text-slate-600">
-                          Next: {lead.nextAction} · {lead.nextAt}
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
-                          {isServiceRole ? (
-                            renderServiceActions(lead)
-                          ) : (
-                            <>
-                              {caps.canAssign && !caps.readOnly && (
-                                <button
-                                  className="rounded-full bg-indigo-500 px-3 py-1.5 text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-400"
-                                  onClick={() => handleAssign(lead.id, "Sales Executive")}
-                                >
-                                  Assign
-                                </button>
-                              )}
-                              {caps.canApproveQuotation && lead.stage === "Pending Approval" && !caps.readOnly && (
-                                <button
-                                  className="rounded-full bg-emerald-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-400"
-                                  onClick={() => handleStageChange(lead.id, "Approved")}
-                                >
-                                  Approve
-                                </button>
-                              )}
-                              {lead.stage === "In Discussion" && caps.canRequestQuotation && !caps.readOnly && (
-                                <button
-                                  className="rounded-full bg-amber-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:bg-amber-400"
-                                  onClick={() => handleStageChange(lead.id, "Pending Approval")}
-                                >
-                                  Request Quote
-                                </button>
-                              )}
-                              {isFinanceRole && lead.stage === "Won" && (
-                                <>
-                                  <button
-                                    className="rounded-full bg-linear-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:brightness-105"
-                                    onClick={() => handleFinanceAction(lead.id, "Invoice")}
-                                  >
-                                    Invoice
-                                  </button>
-                                  <button
-                                    className="rounded-full bg-linear-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:brightness-105"
-                                    onClick={() => handleFinanceAction(lead.id, "Payment receipt")}
-                                  >
-                                    Record Payment
-                                  </button>
-                                  <button
-                                    className="rounded-full bg-linear-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:brightness-105"
-                                    onClick={() => handleFinanceAction(lead.id, "Credit note")}
-                                  >
-                                    Credit Note
-                                  </button>
-                                  <button
-                                    className="rounded-full bg-linear-to-r from-rose-500 to-red-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:brightness-105"
-                                    onClick={() => handleFinanceAction(lead.id, "Debit note")}
-                                  >
-                                    Debit Note
-                                  </button>
-                                  <button
-                                    className="rounded-full border border-cyan-200 bg-white px-3 py-1.5 text-cyan-700 shadow-sm transition hover:bg-cyan-50"
-                                    onClick={() => handleFinanceAction(lead.id, "Ledger view")}
-                                  >
-                                    Ledger
-                                  </button>
-                                </>
-                              )}
-                            </>
+                          {lead.statusTag && (
+                            <span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-600">
+                              {lead.statusTag}
+                            </span>
                           )}
                         </div>
+                        <div className="flex items-center gap-2" />
                       </div>
-                    ))}
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-800">{lead.nextAction}</span>
+                        <span className="text-xs text-slate-500">Next Action</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100">
+                  <p className="text-sm font-semibold text-slate-800">Pending Approvals</p>
+                  <p className="mt-2 text-xs text-slate-500">No pending approvals.</p>
+                </div>
+                {selectedLead && (
+                  <div
+                    ref={detailRef}
+                    className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-slate-800">Selected Lead</p>
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                        {selectedLead.stage}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">{selectedLead.name} · {selectedLead.id}</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-800">Next: {selectedLead.nextAction}</p>
+                    <div className="mt-3 grid gap-2 text-xs font-semibold text-slate-600">
+                      <label className="space-y-1">
+                        <span>Date</span>
+                        <input
+                          type="date"
+                          value={followUpDate}
+                          onChange={(e) => setFollowUpDate(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm shadow-inner focus:border-cyan-300 focus:outline-none"
+                        />
+                      </label>
+                      <label className="space-y-1">
+                        <span>Time</span>
+                        <input
+                          type="time"
+                          value={followUpTime}
+                          onChange={(e) => setFollowUpTime(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm shadow-inner focus:border-cyan-300 focus:outline-none"
+                        />
+                      </label>
+                      <label className="space-y-1">
+                        <span>Notes</span>
+                        <textarea
+                          value={callNotes}
+                          onChange={(e) => setCallNotes(e.target.value)}
+                          rows={3}
+                          className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm shadow-inner focus:border-cyan-300 focus:outline-none"
+                        />
+                      </label>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                      <button
+                        onClick={handleNextAction}
+                        className="rounded-full bg-blue-500 px-3 py-1.5 text-white shadow-sm shadow-blue-200 transition hover:bg-blue-400"
+                      >
+                        Next action
+                      </button>
+                      <button
+                        onClick={handleSaveFollowUp}
+                        className="rounded-full bg-cyan-500 px-3 py-1.5 text-white shadow-sm shadow-cyan-200 transition hover:bg-cyan-400"
+                      >
+                        Save follow-up
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
+        )}
+
+        {selectedTab === "quotations" && (
+          <>
+            <section className="mb-4 grid gap-3 sm:grid-cols-4">
+              {quotationKpis.map((kpi) => (
+                <div
+                  key={kpi.label}
+                  className={`rounded-2xl border border-white/60 ${kpi.color} p-4 shadow-md shadow-slate-100`}
+                >
+                  <p className="text-xs font-semibold text-slate-700">{kpi.label}</p>
+                  <p className="mt-2 text-3xl font-semibold text-slate-900">{kpi.value}</p>
+                </div>
+              ))}
+            </section>
+
+            <section className="space-y-3">
+              {quotations.map((quote) => (
+                <div
+                  key={quote.id}
+                  className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-slate-900">{quote.id}</p>
+                      <p className="text-xs text-slate-500">
+                        Company: {quote.company} · Client: {quote.client} · Lead ID: {quote.leadId} · Date: {quote.date}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-600">
+                      {quote.status}
+                    </span>
+                    <p className="text-lg font-semibold text-slate-900">{quote.price}</p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
+                    <button className="rounded-full bg-slate-100 px-3 py-1 text-slate-700 shadow-inner transition hover:bg-slate-200">
+                      Preview Invoice
+                    </button>
+                    <button className="rounded-full bg-slate-100 px-3 py-1 text-slate-700 shadow-inner transition hover:bg-slate-200">
+                      PDF
+                    </button>
                   </div>
                 </div>
               ))}
-            </div>
-          )}
-        </section>
+            </section>
+          </>
+        )}
+
+        {selectedTab === "orders" && (
+          <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-6 text-sm font-semibold text-slate-500 shadow-sm">
+            Orders view coming soon.
+          </div>
+        )}
       </main>
+
       {toast && <LeadToast message={toast} />}
     </div>
   );
@@ -1496,30 +1086,16 @@ function LeadToast({ message }: { message: string }) {
           </span>
           <p className="text-base font-semibold leading-snug">{message}</p>
         </div>
-      </div>
-      <style jsx>{`
-        @keyframes toastPop {
-          from {
-            opacity: 0;
-            transform: translateY(-10px) scale(0.97);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-        @keyframes toastFade {
-          from {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-          to {
-            opacity: 0;
-            transform: translateY(-6px) scale(0.99);
-          }
-        }
-      `}</style>
+      )}
+
+      {toast && (
+        <div className="pointer-events-auto fixed bottom-6 right-6 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-lg shadow-slate-200">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
+
+
 
