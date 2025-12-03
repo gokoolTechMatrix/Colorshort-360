@@ -3504,7 +3504,7 @@ function SalesExecutiveDashboard({ profileName }: DashboardProps) {
 
       {activeTab === "orders" && (
         <div className="rounded-3xl border border-slate-100 bg-white p-6 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-100">
-          Orders workspace coming soon. Track PO > dispatch > installation here.
+          Orders workspace coming soon. Track PO to dispatch to installation here.
         </div>
       )}
 
