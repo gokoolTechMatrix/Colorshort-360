@@ -2872,6 +2872,23 @@ function SalesExecutiveDashboard({ profileName }: DashboardProps) {
     validity: string;
   };
 
+  type OrderForm = {
+    model: string;
+    totalPrice: string;
+    quantity: string;
+    customerName: string;
+    gstNumber: string;
+    contactPerson: string;
+    billingAddress: string;
+    shippingAddress: string;
+    discount: string;
+    paymentMethod: string;
+    deliveryTimeline: string;
+    shipmentType: string;
+    specialRequest: string;
+    terms: string;
+  };
+
   const stageOrder: LeadStatus[] = [
     "New",
     "Contacted",
@@ -2891,6 +2908,25 @@ function SalesExecutiveDashboard({ profileName }: DashboardProps) {
   const [toast, setToast] = useState<string | null>(null);
   const [gps, setGps] = useState<{ lat: string; lng: string } | null>(null);
   const [attachments, setAttachments] = useState<number>(0);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [selectedQuotationForOrder, setSelectedQuotationForOrder] = useState<Quotation | null>(null);
+  const defaultOrderForm = (q: Quotation | null = null): OrderForm => ({
+    model: q?.company?.includes("CS") ? q.company : "CS-5000",
+    totalPrice: q?.price ?? "₹ 8,40,000",
+    quantity: "1",
+    customerName: q?.client ?? "",
+    gstNumber: "11nnjcwedeq",
+    contactPerson: q?.client ? q.client.split(" ")[0] ?? "Nisha" : "Nisha",
+    billingAddress: "1342,\nMadurai, Tamil Nadu",
+    shippingAddress: "",
+    discount: "₹ 10,000",
+    paymentMethod: "",
+    deliveryTimeline: "",
+    shipmentType: "",
+    specialRequest: "",
+    terms: "",
+  });
+  const [orderForm, setOrderForm] = useState<OrderForm>(defaultOrderForm());
 
   const [leads, setLeads] = useState<LeadItem[]>([
     {
@@ -3042,6 +3078,26 @@ function SalesExecutiveDashboard({ profileName }: DashboardProps) {
   const filteredQuotations = quotations.filter((q) => quotationFilter === "All" || q.status === quotationFilter);
 
   const handleActionToast = (message: string) => setToast(message);
+  const handleOpenOrderModal = (q: Quotation) => {
+    setSelectedQuotationForOrder(q);
+    setOrderForm(defaultOrderForm(q));
+    setShowOrderModal(true);
+  };
+  const handleCloseOrderModal = () => {
+    setShowOrderModal(false);
+    setSelectedQuotationForOrder(null);
+  };
+  const handleOrderFieldChange = (field: keyof OrderForm, value: string) => {
+    setOrderForm((prev) => ({ ...prev, [field]: value }));
+  };
+  const handleCopyBilling = () => {
+    setOrderForm((prev) => ({ ...prev, shippingAddress: prev.billingAddress }));
+  };
+  const handleOrderSubmit = (mode: "draft" | "submit") => {
+    const action = mode === "submit" ? "Order sheet submitted" : "Order sheet created";
+    setToast(`${action} (${selectedQuotationForOrder?.id ?? "manual"})`);
+    setShowOrderModal(false);
+  };
   const handleCaptureGps = () => {
     setGps({ lat: "13.0827", lng: "80.2707" });
     setToast("GPS captured");
@@ -3054,6 +3110,80 @@ function SalesExecutiveDashboard({ profileName }: DashboardProps) {
     if (!selectedLead) return;
     setLeads((prev) => prev.map((lead) => (lead.id === selectedLead.id ? { ...lead, status: nextStatus } : lead)));
     setToast(`Stage moved to ${nextStatus}`);
+  };
+  const handlePrintQuote = (quote: Quotation) => {
+    const win = window.open("", "print-quote", "width=900,height=1200");
+    if (!win) return;
+    const html = `<!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Quotation ${quote.id}</title>
+        <style>
+          body { font-family: Arial, sans-serif; color: #1f2937; margin: 32px; }
+          .row { display: flex; justify-content: space-between; }
+          .section { margin-top: 16px; }
+          .heading { font-weight: 700; letter-spacing: 0.08em; font-size: 12px; color: #6b7280; }
+          .title { font-size: 24px; font-weight: 700; margin: 12px 0; }
+          .muted { color: #6b7280; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+          th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; font-size: 13px; }
+          th { text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; }
+          .total { text-align: right; font-weight: 700; font-size: 16px; }
+        </style>
+      </head>
+      <body>
+        <div class="row">
+          <div>
+            <div class="title">QUOTATION</div>
+            <div class="muted">No. ${quote.id}</div>
+            <div class="muted">Date: ${quote.date}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="title" style="font-size:18px;">Qube Technologies</div>
+            <div class="muted">Rice Sorting Solutions</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="row">
+            <div>
+              <div class="heading">From</div>
+              <div>Qube Technologies Pvt Ltd</div>
+              <div class="muted">sales@qube.tech</div>
+              <div class="muted">GST: 33AABCU9603R1ZX</div>
+            </div>
+            <div>
+              <div class="heading">To</div>
+              <div>${quote.client}</div>
+              <div class="muted">Contact: ${quote.client}</div>
+              <div class="muted">Phone: 9080202120</div>
+              <div class="muted">GST: 11nnjcwedeq</div>
+              <div class="muted">1342, Madurai, Tamil Nadu</div>
+            </div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Items Description</th><th style="text-align:right;">Unit Price</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Total</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>CS-5000 · High-performance rice sorter</td><td style="text-align:right;">₹ 850,000</td><td style="text-align:right;">1</td><td style="text-align:right;">₹ 850,000</td></tr>
+          </tbody>
+        </table>
+        <div class="section total">Subtotal: ${quote.price}</div>
+        <div class="section muted">Tax GST 18%: ₹ 153,000 · Discount: ₹ 10,000</div>
+        <div class="section total">Total Due: ₹ 993,000</div>
+        <div class="section" style="margin-top:32px;">
+          <div class="heading">Terms & Conditions</div>
+          <div class="muted">Payment due within 30 days. Installation and training included.</div>
+        </div>
+        <div class="section" style="margin-top:24px; font-weight:700;">Thank you for your business.</div>
+      </body>
+    </html>`;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
   };
 
   return (
@@ -3380,7 +3510,7 @@ function SalesExecutiveDashboard({ profileName }: DashboardProps) {
                                 View PO
                               </button>
                               <button
-                                onClick={() => handleActionToast("Order sheet created")}
+                                onClick={() => handleOpenOrderModal(q)}
                                 className="rounded-full bg-indigo-500 px-3 py-1 text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-400"
                               >
                                 Create order sheet
@@ -3390,6 +3520,12 @@ function SalesExecutiveDashboard({ profileName }: DashboardProps) {
                                 className="rounded-full bg-slate-900 px-3 py-1 text-white shadow-sm transition hover:bg-slate-800"
                               >
                                 Prepare invoice
+                              </button>
+                              <button
+                                onClick={() => handlePrintQuote(q)}
+                                className="rounded-full bg-white px-3 py-1 text-indigo-700 shadow-sm transition hover:bg-indigo-50"
+                              >
+                                Print / PDF
                               </button>
                             </div>
                           </div>
@@ -3472,7 +3608,7 @@ function SalesExecutiveDashboard({ profileName }: DashboardProps) {
                     View PO
                   </button>
                   <button
-                    onClick={() => handleActionToast("Order sheet prepared")}
+                    onClick={() => handleOpenOrderModal(q)}
                     className="rounded-full bg-indigo-500 px-3 py-1 text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-400"
                   >
                     Create order sheet
@@ -3484,7 +3620,7 @@ function SalesExecutiveDashboard({ profileName }: DashboardProps) {
                     Prepare invoice
                   </button>
                   <button
-                    onClick={() => handleActionToast("PDF downloaded")}
+                    onClick={() => handlePrintQuote(q)}
                     className="rounded-full bg-white px-3 py-1 text-indigo-700 shadow-sm transition hover:bg-indigo-50"
                   >
                     PDF
@@ -3505,6 +3641,192 @@ function SalesExecutiveDashboard({ profileName }: DashboardProps) {
       {activeTab === "orders" && (
         <div className="rounded-3xl border border-slate-100 bg-white p-6 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-100">
           Orders workspace coming soon. Track PO to dispatch to installation here.
+        </div>
+      )}
+
+      {showOrderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 py-6">
+          <div className="relative max-h-[90vh] w-full max-w-4xl overflow-auto rounded-3xl bg-white p-6 shadow-2xl shadow-slate-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">Create Order Sheet</h3>
+                {selectedQuotationForOrder && (
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    From {selectedQuotationForOrder.id} · {selectedQuotationForOrder.company}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={handleCloseOrderModal}
+                className="rounded-full border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-4 text-sm font-semibold text-slate-700">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="space-y-2">
+                  <span>Model</span>
+                  <input
+                    value={orderForm.model}
+                    onChange={(e) => handleOrderFieldChange("model", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span>Total Price</span>
+                  <input
+                    value={orderForm.totalPrice}
+                    onChange={(e) => handleOrderFieldChange("totalPrice", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+              </div>
+
+              <label className="space-y-2">
+                <span>Quantity</span>
+                <input
+                  value={orderForm.quantity}
+                  onChange={(e) => handleOrderFieldChange("quantity", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span>Customer Name</span>
+                <input
+                  value={orderForm.customerName}
+                  onChange={(e) => handleOrderFieldChange("customerName", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="space-y-2">
+                  <span>GST No.</span>
+                  <input
+                    value={orderForm.gstNumber}
+                    onChange={(e) => handleOrderFieldChange("gstNumber", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span>Contact Person</span>
+                  <input
+                    value={orderForm.contactPerson}
+                    onChange={(e) => handleOrderFieldChange("contactPerson", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+              </div>
+
+              <label className="space-y-2">
+                <span>Billing Address</span>
+                <textarea
+                  rows={2}
+                  value={orderForm.billingAddress}
+                  onChange={(e) => handleOrderFieldChange("billingAddress", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span>Shipping Address</span>
+                  <button
+                    onClick={handleCopyBilling}
+                    className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    Copy billing → shipping
+                  </button>
+                </div>
+                <textarea
+                  rows={2}
+                  value={orderForm.shippingAddress}
+                  onChange={(e) => handleOrderFieldChange("shippingAddress", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
+
+              <label className="space-y-2">
+                <span>Discount (from Quotation)</span>
+                <input
+                  value={orderForm.discount}
+                  onChange={(e) => handleOrderFieldChange("discount", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label className="space-y-2">
+                  <span>Payment Method</span>
+                  <input
+                    value={orderForm.paymentMethod}
+                    onChange={(e) => handleOrderFieldChange("paymentMethod", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span>Delivery Timeline</span>
+                  <input
+                    value={orderForm.deliveryTimeline}
+                    onChange={(e) => handleOrderFieldChange("deliveryTimeline", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span>Shipment Type</span>
+                  <input
+                    value={orderForm.shipmentType}
+                    onChange={(e) => handleOrderFieldChange("shipmentType", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+              </div>
+
+              <label className="space-y-2">
+                <span>Special Request</span>
+                <textarea
+                  rows={2}
+                  value={orderForm.specialRequest}
+                  onChange={(e) => handleOrderFieldChange("specialRequest", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span>Terms / Notes</span>
+                <textarea
+                  rows={3}
+                  value={orderForm.terms}
+                  onChange={(e) => handleOrderFieldChange("terms", e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-2 text-sm font-semibold">
+                <button
+                  onClick={handleCloseOrderModal}
+                  className="rounded-full border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleOrderSubmit("submit")}
+                  className="rounded-full bg-slate-900 px-4 py-2 text-white shadow-sm transition hover:bg-slate-800"
+                >
+                  Create &amp; Submit
+                </button>
+                <button
+                  onClick={() => handleOrderSubmit("draft")}
+                  className="rounded-full bg-indigo-500 px-4 py-2 text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-400"
+                >
+                  Create
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
