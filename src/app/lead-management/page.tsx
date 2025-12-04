@@ -2,10 +2,8 @@
 
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { getRoleFromEmail } from "@/lib/role-map";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
 
 type LeadStage =
   | "New"
@@ -14,7 +12,8 @@ type LeadStage =
   | "Approved"
   | "Won"
   | "Lost"
-  // Service workflow
+  | "Contacted"
+  | "Quotation Sent"
   | "Ticket Created"
   | "Assigned"
   | "On the Way"
@@ -39,7 +38,23 @@ type Lead = {
   source: string;
   stage: LeadStage;
   temperature: LeadTemperature;
+  value?: string;
+  nextAction?: string;
+  nextAt?: string;
   statusTag?: string;
+  special?: boolean;
+};
+
+type RoleCaps = {
+  canAssign: boolean;
+  canApproveQuotation: boolean;
+  canRequestQuotation: boolean;
+  canClose: boolean;
+  canChangeStage: boolean;
+  canCreate: boolean;
+  readOnly: boolean;
+  deny?: boolean;
+  viewFilter: (lead: Lead, profileName?: string) => boolean;
 };
 
 const roleCaps: Record<string, RoleCaps> = {
@@ -114,39 +129,39 @@ const roleCaps: Record<string, RoleCaps> = {
     readOnly: false,
     viewFilter: (lead, profileName) =>
       lead.role === "sales-executive" &&
-      lead.owner.toLowerCase().includes(profileName.toLowerCase()),
+      lead.owner.toLowerCase().includes((profileName ?? "").toLowerCase()),
   },
   "service-manager": {
-    canAssign: true, // final assignment authority
-    canApproveQuotation: true, // approvals for charges/spares/closure
-    canRequestQuotation: true, // can push requests forward
-    canClose: true, // final closure
+    canAssign: true,
+    canApproveQuotation: true,
+    canRequestQuotation: true,
+    canClose: true,
     canChangeStage: true,
-    canCreate: false, // coordinator creates tickets
+    canCreate: false,
     readOnly: false,
     viewFilter: (lead) => lead.role?.startsWith("service"),
   },
   "service-co-ordinator": {
-    canAssign: false, // manager assigns
+    canAssign: false,
     canApproveQuotation: false,
-    canRequestQuotation: true, // can push to approval queue
+    canRequestQuotation: true,
     canClose: false,
-    canChangeStage: true, // can update status progression
-    canCreate: true, // only role that creates service tickets
+    canChangeStage: true,
+    canCreate: true,
     readOnly: false,
     viewFilter: (lead) => lead.role?.startsWith("service"),
   },
   "service-executive": {
     canAssign: false,
     canApproveQuotation: false,
-    canRequestQuotation: true, // request approvals/closures
+    canRequestQuotation: true,
     canClose: false,
-    canChangeStage: true, // update job status
+    canChangeStage: true,
     canCreate: false,
     readOnly: false,
     viewFilter: (lead, profileName) =>
       lead.role?.startsWith("service") &&
-      lead.owner.toLowerCase().includes(profileName.toLowerCase()),
+      lead.owner.toLowerCase().includes((profileName ?? "").toLowerCase()),
   },
   "service-engineer": {
     canAssign: false,
@@ -158,7 +173,7 @@ const roleCaps: Record<string, RoleCaps> = {
     readOnly: false,
     viewFilter: (lead, profileName) =>
       lead.role?.startsWith("service") &&
-      lead.owner.toLowerCase().includes(profileName.toLowerCase()),
+      lead.owner.toLowerCase().includes((profileName ?? "").toLowerCase()),
   },
   hr: {
     canAssign: false,
@@ -173,8 +188,6 @@ const roleCaps: Record<string, RoleCaps> = {
   },
 };
 
-const allowedRoles = new Set(Object.keys(roleCaps));
-
 const mockLeads: Lead[] = [
   {
     id: "L-1023",
@@ -188,7 +201,7 @@ const mockLeads: Lead[] = [
     source: "Inbound Call",
     stage: "In Discussion",
     temperature: "Hot",
-    value: "₹18.5L",
+    value: "Rs 118.5L",
     nextAction: "Schedule on-site demo",
     nextAt: "2025-11-30 11:00",
     special: true,
@@ -205,7 +218,7 @@ const mockLeads: Lead[] = [
     source: "Web Form",
     stage: "Assigned",
     temperature: "Warm",
-    value: "₹12.0L",
+    value: "Rs 112.0L",
     nextAction: "Initial qualification call",
     nextAt: "2025-11-27 15:00",
   },
@@ -221,7 +234,7 @@ const mockLeads: Lead[] = [
     source: "Expo Lead",
     stage: "Pending Approval",
     temperature: "Hot",
-    value: "₹25.0L",
+    value: "Rs 125.0L",
     nextAction: "Manager approval for quotation",
     nextAt: "2025-11-26 10:30",
   },
@@ -237,7 +250,7 @@ const mockLeads: Lead[] = [
     source: "Portal",
     stage: "Ticket Created",
     temperature: "Warm",
-    value: "₹9.8L",
+    value: "Rs 19.8L",
     nextAction: "Send final quotation",
     nextAt: "2025-11-26 16:00",
   },
@@ -253,7 +266,7 @@ const mockLeads: Lead[] = [
     source: "Referral",
     stage: "Assigned",
     temperature: "Hot",
-    value: "₹30.0L",
+    value: "Rs 130.0L",
     nextAction: "Plan installation scope",
     nextAt: "2025-11-29 12:00",
   },
@@ -269,7 +282,7 @@ const mockLeads: Lead[] = [
     source: "Inbound Call",
     stage: "New",
     temperature: "Cold",
-    value: "₹6.0L",
+    value: "Rs 16.0L",
     nextAction: "Verify contact & commodity",
     nextAt: "2025-11-28 09:30",
   },
@@ -285,7 +298,7 @@ const mockLeads: Lead[] = [
     source: "Email",
     stage: "In Discussion",
     temperature: "Warm",
-    value: "₹14.2L",
+    value: "Rs 114.2L",
     nextAction: "Review demo notes",
     nextAt: "2025-11-27 17:00",
   },
@@ -301,7 +314,7 @@ const mockLeads: Lead[] = [
     source: "Portal",
     stage: "Won",
     temperature: "Cold",
-    value: "₹21.0L",
+    value: "Rs 121.0L",
     nextAction: "Invoice & payment plan",
     nextAt: "2025-11-30 12:00",
     special: true,
@@ -318,7 +331,7 @@ const mockLeads: Lead[] = [
     source: "Order",
     stage: "Won",
     temperature: "Warm",
-    value: "₹32.5L",
+    value: "Rs 132.5L",
     nextAction: "Generate invoice & push to Tally",
     nextAt: "2025-11-28 14:00",
   },
@@ -387,7 +400,7 @@ const mapSupabaseLead = (lead: SupabaseLeadRow): Lead => {
     source: lead.lead_source_ || "App",
     stage,
     temperature,
-    value: "�,0",
+    value: "Rs 0",
     nextAction: lead.purpose_switch ? `Discuss: ${lead.purpose_switch}` : "Follow up",
     nextAt: lead.next_followup_on
       ? lead.next_followup_on
@@ -395,36 +408,89 @@ const mapSupabaseLead = (lead: SupabaseLeadRow): Lead => {
   };
 };
 
+const kpiStyles = [
+  { border: "border-cyan-100", bg: "bg-cyan-50", accent: "text-cyan-600" },
+  { border: "border-indigo-100", bg: "bg-indigo-50", accent: "text-indigo-600" },
+  { border: "border-amber-100", bg: "bg-amber-50", accent: "text-amber-600" },
+  { border: "border-emerald-100", bg: "bg-emerald-50", accent: "text-emerald-600" },
+];
+
+const quotationKpis = [
+  { label: "Submitted", value: "12", color: "bg-blue-50" },
+  { label: "PO received", value: "3", color: "bg-emerald-50" },
+  { label: "Pending review", value: "4", color: "bg-amber-50" },
+  { label: "Invoices", value: "5", color: "bg-slate-50" },
+];
+
+const quotations = [
+  {
+    id: "Q-2025-729",
+    status: "PO RECEIVED",
+    company: "Matrix Smart",
+    client: "Matrix Smart",
+    leadId: "251111",
+    date: "21/11/2025",
+    price: "Rs 111.8L",
+  },
+  {
+    id: "Q-2025-771",
+    status: "SUBMITTED",
+    company: "ABC COMPANY",
+    client: "ABC COMPANY",
+    leadId: "251110",
+    date: "21/11/2025",
+    price: "Rs 13.98L",
+  },
+  {
+    id: "Q-2025-668",
+    status: "SUBMITTED",
+    company: "ABC COMPANY",
+    client: "ABC COMPANY",
+    leadId: "251109",
+    date: "21/11/2025",
+    price: "Rs 10.0L",
+  },
+];
+
 export default function LeadManagementPage() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
-  const [companyLogo, setCompanyLogo] = useState("/image.png");
-  const [isSigningOut, setIsSigningOut] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [profileRole, setProfileRole] = useState<string | null>(null);
-  const [profileName, setProfileName] = useState("Team Member");
-  const [viewMode, setViewMode] = useState<"table" | "pipeline">("table");
+  const companyLogo = "/image.png";
+  const [profileRole, setProfileRole] = useState<string>("sales-executive");
+  const profileName = "Team Member";
   const [selectedStage, setSelectedStage] = useState<LeadStage | "All">("All");
-  const [selectedTemp, setSelectedTemp] = useState<LeadTemperature | "All">(
-    "All",
-  );
-  const [toast, setToast] = useState<string | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
+  const [toast, setToast] = useState<string | null>(null);
   const [isRefreshingLeads, setIsRefreshingLeads] = useState(false);
-  const [roleSlug, setRoleSlug] = useState<string | null>(null);
-  const [isCheckingRole, setIsCheckingRole] = useState(true);
-  const [accessDenied, setAccessDenied] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [followUpTime, setFollowUpTime] = useState("");
+  const [callNotes, setCallNotes] = useState("");
+  const [selectedTab, setSelectedTab] = useState<"overview" | "quotations" | "orders">(
+    "overview",
+  );
   const allowedRole = "sales-executive";
 
-  const filteredLeads = useMemo(() => {
-    if (selectedFilter === "All") return leads;
-    return leads.filter((lead) => lead.stage === selectedFilter);
-  }, [leads, selectedFilter]);
-
-  const caps = roleCaps[profileRole ?? ""] ?? roleCaps["super_admin"];
-  const isServiceRole = (profileRole ?? "").startsWith("service");
+  const caps = roleCaps[profileRole] ?? roleCaps["super_admin"];
+  const isServiceRole = profileRole.startsWith("service");
   const activeStageOrder = isServiceRole ? serviceStageOrder : salesStageOrder;
+
+  const visibleLeads = useMemo(
+    () => leads.filter((lead) => caps.viewFilter(lead, profileName)),
+    [caps, leads, profileName],
+  );
+
+  const filteredLeads = useMemo(() => {
+    if (selectedStage === "All") return visibleLeads;
+    return visibleLeads.filter((lead) => lead.stage === selectedStage);
+  }, [selectedStage, visibleLeads]);
+
+  const selectedLead = useMemo(
+    () => leads.find((lead) => lead.id === selectedLeadId) ?? null,
+    [leads, selectedLeadId],
+  );
 
   useEffect(() => {
     const detectRole = () => {
@@ -438,10 +504,8 @@ export default function LeadManagementPage() {
       return normalized || allowedRole;
     };
     const role = detectRole();
-    setRoleSlug(role);
-    setAccessDenied(role !== allowedRole);
-    setIsCheckingRole(false);
-  }, []);
+    setProfileRole(role);
+  }, [allowedRole]);
 
   useEffect(() => {
     if (!toast) return;
@@ -450,21 +514,19 @@ export default function LeadManagementPage() {
   }, [toast]);
 
   useEffect(() => {
-    if (isCheckingAuth) return;
     const fetchSupabaseLeads = async () => {
       try {
         const response = await fetch("/api/leads", { cache: "no-store" });
         if (!response.ok) return;
         const payload = (await response.json()) as { leads?: SupabaseLeadRow[] };
         const mapped = (payload.leads ?? []).map(mapSupabaseLead);
-        setLeads([...mapped, ...mockLeads]);
+        setLeads((prev) => [...mapped, ...prev]);
       } catch {
-        // best effort
+        // ignore best-effort fetch
       }
     };
     void fetchSupabaseLeads();
-  }, [isCheckingAuth]);
-
+  }, []);
 
   useEffect(() => {
     if (selectedStage !== "All" && !activeStageOrder.includes(selectedStage as LeadStage)) {
@@ -486,7 +548,6 @@ export default function LeadManagementPage() {
     if (isRefreshingLeads) return;
     setIsRefreshingLeads(true);
     try {
-      // Simulate fetch — replace with real API when available.
       await new Promise((resolve) => setTimeout(resolve, 600));
       setLeads([...mockLeads]);
       setToast("Leads refreshed");
@@ -496,171 +557,103 @@ export default function LeadManagementPage() {
   };
 
   const handleStageChange = (leadId: string, stage: LeadStage) => {
-    if (!caps.canChangeStage && !caps.canApproveQuotation && !caps.canRequestQuotation && !caps.canClose) {
+    if (
+      !caps.canChangeStage &&
+      !caps.canApproveQuotation &&
+      !caps.canRequestQuotation &&
+      !caps.canClose
+    ) {
       return;
     }
-    setLeads((prev) =>
-      prev.map((lead) => (lead.id === leadId ? { ...lead, stage } : lead)),
-    );
-    if (isServiceRole && (profileRole === "service-engineer" || profileRole === "service-executive")) {
-      setServiceNotifications((prev) => [
-        ...prev.slice(-9),
-        {
-          id: `${leadId}-${stage}-${Date.now()}`,
-          message: `${profileName} updated ${leadId} to ${stage}`,
-          time: new Date().toLocaleString(),
-        },
-      ]);
-    }
+    setLeads((prev) => prev.map((lead) => (lead.id === leadId ? { ...lead, stage } : lead)));
     setToast(`Lead ${leadId} moved to ${stage}`);
   };
 
-  const handleAssign = (leadId: string, owner: string) => {
-    if (!caps.canAssign) return;
-    setLeads((prev) =>
-      prev.map((lead) =>
-        lead.id === leadId
-          ? {
-              ...lead,
-              owner,
-              role: owner.toLowerCase().includes("service")
-                ? "service-engineer"
-                : lead.role,
-              stage: isServiceRole ? "Assigned" : lead.stage,
-            }
-          : lead,
-      ),
-    );
-    setToast(`Lead ${leadId} assigned to ${owner}`);
+  const handleNeedInfo = (leadId: string) => {
+    handleStageChange(leadId, "In Discussion");
+    setToast(`Requested more info for ${leadId}`);
   };
 
-  const handleReceiveLead = () => {
+  const handleRejectLead = (leadId: string) => {
+    handleStageChange(leadId, "Lost");
+    setToast(`Lead ${leadId} marked as lost`);
+  };
+
+  const handleNewLead = () => {
     const nextId = `L-${Math.floor(Math.random() * 9000 + 1000)}`;
     const newLead: Lead = {
       id: nextId,
-      name: "New Prospect",
+      customer: "New Prospect",
       company: "Assigned Company",
-      modelLabel: "Model",
-      modelValue: "Not set",
-      nextAction: "Intro call",
+      owner: profileName,
+      role: profileRole,
+      zone: "North",
+      state: "Delhi",
+      product: "Not set",
+      source: "Manual",
       stage: "New",
       temperature: "Warm",
-      statusTag: "assigned",
-      owner: "You",
+      statusTag: "Assigned",
+      nextAction: "Intro call",
+      nextAt: new Date().toISOString().slice(0, 10),
     };
     setLeads((prev) => [newLead, ...prev]);
     setSelectedLeadId(newLead.id);
     setToast("New lead received");
   };
 
-  const handleOpenLead = (leadId: string) => {
+  const handleSelectLead = (leadId: string) => {
     setSelectedLeadId(leadId);
     setToast(`Opening ${leadId}`);
   };
 
   const handleNextAction = () => {
-  if (!selectedLead) return;
-  const nextStage: LeadStage =
-    selectedLead.stage === "New"
-      ? "Contacted"
-      : selectedLead.stage === "Contacted"
-        ? "Quotation Sent"
-        : "Pending Approval";
-  handleStageChange(selectedLead.id, nextStage);
-  setToast("Next action logged");
-};
-
-  const handleFinanceAction = (leadId: string, action: string) => {
-    if (!isFinanceRole) return;
-    setToast(`${action} for ${leadId} ready`);
+    if (!selectedLead) return;
+    const order = activeStageOrder;
+    const currentIndex = order.indexOf(selectedLead.stage);
+    const nextStage =
+      currentIndex >= 0 && currentIndex < order.length - 1
+        ? order[currentIndex + 1]
+        : selectedLead.stage;
+    handleStageChange(selectedLead.id, nextStage);
+    setToast("Next action logged");
   };
 
-  const addPayment = () => {
-    if (!isFinanceRole) return;
-    const nextId = `P-${Math.floor(Math.random() * 9000 + 1000)}`;
-    setPayments((prev) => [
-      { id: nextId, leadId: "L-1222", amount: "₹1.2L", mode: "Bank Transfer", date: new Date().toISOString().slice(0, 10) },
-      ...prev,
-    ]);
-    setToast(`Payment recorded (${nextId})`);
+  const handleSaveFollowUp = () => {
+    if (!selectedLead) return;
+    const datePart = followUpDate || selectedLead.nextAt?.split("T")[0] || "";
+    const timePart = followUpTime || "09:00";
+    const nextAt = `${datePart} ${timePart}`;
+    setLeads((prev) =>
+      prev.map((lead) => (lead.id === selectedLead.id ? { ...lead, nextAt } : lead)),
+    );
+    setToast("Follow-up saved");
   };
 
-  const addCreditNote = () => {
-    if (!isFinanceRole) return;
-    const nextId = `CN-${Math.floor(Math.random() * 900 + 100)}`;
-    setCredits((prev) => [
-      { id: nextId, leadId: "L-1222", amount: "₹35,000", date: new Date().toISOString().slice(0, 10) },
-      ...prev,
-    ]);
-    setToast(`Credit Note created (${nextId})`);
+  const parseNextAt = (value?: string) => {
+    if (!value) return new Date(NaN);
+    return new Date(value.replace(" ", "T"));
   };
 
-  const addDebitNote = () => {
-    if (!isFinanceRole) return;
-    const nextId = `DN-${Math.floor(Math.random() * 900 + 100)}`;
-    setDebits((prev) => [
-      { id: nextId, leadId: "L-1222", amount: "₹18,000", date: new Date().toISOString().slice(0, 10) },
-      ...prev,
-    ]);
-    setToast(`Debit Note created (${nextId})`);
-  };
-
-  const pipelineColumns = activeStageOrder.map((stage) => ({
-    stage,
-    items: filteredLeads.filter((lead) => lead.stage === stage),
-  }));
-
-  const parseNextAt = (value: string) => new Date(value.replace(" ", "T"));
   const now = Date.now();
   const pendingApprovals = filteredLeads.filter((lead) => lead.stage === "Pending Approval");
   const atRiskLeads = filteredLeads.filter((lead) => {
     const nextDate = parseNextAt(lead.nextAt);
     if (Number.isNaN(nextDate.getTime())) return false;
     const diffDays = (now - nextDate.getTime()) / (1000 * 60 * 60 * 24);
-    return diffDays >= 2; // overdue by 2+ days
+    return diffDays >= 2;
   });
   const overdueFollowups = filteredLeads.filter((lead) => {
     const nextDate = parseNextAt(lead.nextAt);
     return !Number.isNaN(nextDate.getTime()) && nextDate.getTime() < now;
   });
   const hotLeads = filteredLeads.filter((lead) => lead.temperature === "Hot");
-  const showServiceUpdates = profileRole?.includes("sales-manager");
 
   const kpis = [
     { label: "Team Pipeline", value: "Rs 3.8 Cr", subLabel: `${filteredLeads.length} active deals` },
     { label: "Pending approvals", value: pendingApprovals.length, subLabel: "Needs manager decision" },
     { label: "At-risk & overdue", value: atRiskLeads.length, subLabel: `${overdueFollowups.length} follow-ups overdue` },
     { label: "Hot leads", value: hotLeads.length, subLabel: "Prioritize demos & quotes" },
-  ];
-
-  const quotations = [
-    {
-      id: "Q-2025-729",
-      status: "PO RECEIVED",
-      company: "Matrix Smart",
-      client: "Matrix Smart",
-      leadId: "251111",
-      date: "21/11/2025",
-      price: "₹11,80,000",
-    },
-    {
-      id: "Q-2025-771",
-      status: "SUBMITTED",
-      company: "ABC COMPANY",
-      client: "ABC COMPANY",
-      leadId: "251110",
-      date: "21/11/2025",
-      price: "₹3,98,000",
-    },
-    {
-      id: "Q-2025-668",
-      status: "SUBMITTED",
-      company: "ABC COMPANY",
-      client: "ABC COMPANY",
-      leadId: "251109",
-      date: "21/11/2025",
-      price: "₹0",
-    },
   ];
 
   return (
@@ -675,9 +668,7 @@ export default function LeadManagementPage() {
         showSettings={profileRole === "super_admin"}
         showUserCreation={profileRole === "super_admin"}
         showLeadManagement
-        showCustomerVendorManagement={
-          profileRole === "admin" || profileRole === "super_admin"
-        }
+        showCustomerVendorManagement={profileRole === "admin" || profileRole === "super_admin"}
       />
 
       <main className="flex-1 px-4 py-6 sm:px-8">
@@ -690,7 +681,9 @@ export default function LeadManagementPage() {
           <div className="relative flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/80">Sales Command</p>
-              <h1 className="mt-1 text-3xl font-semibold leading-tight">Naveen, keep momentum on live deals.</h1>
+              <h1 className="mt-1 text-3xl font-semibold leading-tight">
+                {profileName}, keep momentum on live deals.
+              </h1>
               <p className="text-sm text-white/85">Track funnel health, follow-ups, and top opportunities.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
@@ -705,32 +698,22 @@ export default function LeadManagementPage() {
                 >
                   {pill.label}: {pill.value}
                 </span>
-              </span>
-              <h1 className="text-3xl font-semibold leading-tight text-white">
-                {isServiceRole
-                  ? `${profileName || "Service lead"}, keep the field humming.`
-                  : profileRole === "admin" || profileRole === "super_admin"
-                    ? "Lead control room"
-                    : "Sales Manager lead control room"}
-              </h1>
-              <p className="max-w-2xl text-sm text-white/80">
-                {isServiceRole
-                  ? "Monitor workload, dispatch efficiency, and escalations in one view."
-                  : "Approve quotes, reassign stuck deals, and keep the funnel healthy with faster follow-ups."}
-              </p>
-              {!isServiceRole && (
-                <div className="flex flex-wrap gap-3 text-xs font-semibold">
-                  <span className="rounded-full bg-white/15 px-3 py-1.5 text-white backdrop-blur">
-                    Pending approvals: {pendingApprovals.length}
-                  </span>
-                  <span className="rounded-full bg-white/15 px-3 py-1.5 text-white backdrop-blur">
-                    At-risk: {atRiskLeads.length}
-                  </span>
-                  <span className="rounded-full bg-white/15 px-3 py-1.5 text-white backdrop-blur">
-                    Hot leads: {hotLeads.length}
-                  </span>
-                </div>
-              )}
+              ))}
+              <div className="flex gap-2">
+                {["overview", "quotations", "orders"].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setSelectedTab(tab as typeof selectedTab)}
+                    className={`rounded-full px-3 py-2 text-xs font-semibold ${
+                      selectedTab === tab
+                        ? "bg-white text-cyan-700"
+                        : "bg-white/15 text-white hover:bg-white/25"
+                    }`}
+                  >
+                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {!isServiceRole && (
@@ -754,16 +737,6 @@ export default function LeadManagementPage() {
                     </svg>
                     Refresh
                   </button>
-                  {caps.canAssign && (
-                    <button className="rounded-full border border-white/70 bg-white px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-800">
-                      Approval queue
-                    </button>
-                  )}
-                  {caps.canAssign && (
-                    <button className="rounded-full border border-white/70 bg-white px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-800">
-                      Bulk reassign
-                    </button>
-                  )}
                   {caps.canCreate && (
                     <button
                       onClick={handleNewLead}
@@ -778,124 +751,116 @@ export default function LeadManagementPage() {
           </div>
         </header>
 
-        {!isServiceRole && (
+        {selectedTab === "overview" && (
           <>
-        <section className="grid gap-4 md:grid-cols-4">
-          {kpis.map((kpi, index) => {
-            const palette = kpiStyles[index % kpiStyles.length];
-            return (
-              <div
-                key={kpi.label}
-                className={`relative overflow-hidden rounded-3xl border ${palette.border} ${palette.bg} p-4 text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md`}
-              >
-                <div className={`text-[11px] font-semibold uppercase tracking-[0.28em] ${palette.accent}`}>
-                  {kpi.label}
-                </div>
-                <div className="mt-2 text-3xl font-semibold text-slate-900">{kpi.value}</div>
-                {kpi.subLabel && (
-                  <div className="mt-1 text-xs font-semibold text-slate-600">{kpi.subLabel}</div>
-                )}
-              </div>
-            );
-          })}
-        </section>
-
-        <section className="mt-6">
-          <div className="rounded-3xl border border-slate-100 bg-white/90 p-4 shadow-lg shadow-indigo-100/60">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
-                  Approval queue
-                </p>
-                <p className="text-sm font-semibold text-slate-600">
-                  {pendingApprovals.length} waiting for manager decision
-                </p>
-              </div>
-              {caps.canApproveQuotation && (
-                <div className="flex items-center gap-2 text-xs font-semibold">
-                  <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
-                    Needs review
-                  </span>
-                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">
-                    Approve / Reject / Info
-                  </span>
-                </div>
-              )}
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {pendingApprovals.length === 0 && (
-                <div className="col-span-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-6 text-center text-sm font-semibold text-slate-500">
-                  No approvals pending. You are clear for now.
-                </div>
-              )}
-              {pendingApprovals.map((lead) => (
-                <div
-                  key={lead.id}
-                  className="relative overflow-hidden rounded-2xl border border-slate-100 bg-linear-to-br from-white via-slate-50 to-indigo-50 p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">
-                        {lead.customer} <span className="text-xs text-slate-500">({lead.id})</span>
-                      </p>
-                      <p className="text-xs text-slate-500">{lead.company}</p>
+            <section className="grid gap-4 md:grid-cols-4">
+              {kpis.map((kpi, index) => {
+                const palette = kpiStyles[index % kpiStyles.length];
+                return (
+                  <div
+                    key={kpi.label}
+                    className={`relative overflow-hidden rounded-3xl border ${palette.border} ${palette.bg} p-4 text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md`}
+                  >
+                    <div className={`text-[11px] font-semibold uppercase tracking-[0.28em] ${palette.accent}`}>
+                      {kpi.label}
                     </div>
-                    <span className="rounded-full bg-indigo-100 px-2 py-1 text-[11px] font-semibold text-indigo-700">
-                      {lead.value}
-                    </span>
+                    <div className="mt-2 text-3xl font-semibold text-slate-900">{kpi.value}</div>
+                    {kpi.subLabel && (
+                      <div className="mt-1 text-xs font-semibold text-slate-600">{kpi.subLabel}</div>
+                    )}
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-                    <span className="rounded-full bg-white px-2 py-1 text-slate-600">
-                      {lead.product}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
-                      {lead.owner}
-                    </span>
-                    <span
-                      className={`rounded-full px-2 py-1 text-white ${
-                        lead.temperature === "Hot"
-                          ? "bg-rose-500"
-                          : lead.temperature === "Warm"
-                            ? "bg-amber-500"
-                            : "bg-slate-400"
-                      }`}
-                    >
-                      {lead.temperature}
-                    </span>
+                );
+              })}
+            </section>
+
+            <section className="mt-6">
+              <div className="rounded-3xl border border-slate-100 bg-white/90 p-4 shadow-lg shadow-indigo-100/60">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Approval queue</p>
+                    <p className="text-sm font-semibold text-slate-600">
+                      {pendingApprovals.length} waiting for manager decision
+                    </p>
                   </div>
-                  <p className="mt-2 text-xs font-semibold text-slate-600">
-                    Next: {lead.nextAction} • {lead.nextAt}
-                  </p>
                   {caps.canApproveQuotation && (
-                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
-                      <button
-                        className="rounded-full bg-emerald-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-400"
-                        onClick={() => handleStageChange(lead.id, "Approved")}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        className="rounded-full bg-amber-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:bg-amber-400"
-                        onClick={() => handleNeedInfo(lead.id)}
-                      >
-                        Need Info
-                      </button>
-                      <button
-                        className="rounded-full bg-rose-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:bg-rose-400"
-                        onClick={() => handleRejectLead(lead.id)}
-                      >
-                        Reject
-                      </button>
+                    <div className="flex items-center gap-2 text-xs font-semibold">
+                      <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">Needs review</span>
+                      <span className="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">
+                        Approve / Reject / Info
+                      </span>
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {pendingApprovals.length === 0 && (
+                    <div className="col-span-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-6 text-center text-sm font-semibold text-slate-500">
+                      No approvals pending. You are clear for now.
+                    </div>
+                  )}
+                  {pendingApprovals.map((lead) => (
+                    <div
+                      key={lead.id}
+                      className="relative overflow-hidden rounded-2xl border border-slate-100 bg-gradient-to-br from-white via-slate-50 to-indigo-50 p-4 shadow-md shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {lead.customer} <span className="text-xs text-slate-500">({lead.id})</span>
+                          </p>
+                          <p className="text-xs text-slate-500">{lead.company}</p>
+                        </div>
+                        <span className="rounded-full bg-indigo-100 px-2 py-1 text-[11px] font-semibold text-indigo-700">
+                          {lead.value}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+                        <span className="rounded-full bg-white px-2 py-1 text-slate-600">{lead.product}</span>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">{lead.owner}</span>
+                        <span
+                          className={`rounded-full px-2 py-1 text-white ${
+                            lead.temperature === "Hot"
+                              ? "bg-rose-500"
+                              : lead.temperature === "Warm"
+                                ? "bg-amber-500"
+                                : "bg-slate-400"
+                          }`}
+                        >
+                          {lead.temperature}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs font-semibold text-slate-600">
+                        Next: {lead.nextAction} → {lead.nextAt}
+                      </p>
+                      {caps.canApproveQuotation && (
+                        <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
+                          <button
+                            className="rounded-full bg-emerald-500 px-3 py-1.5 text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-400"
+                            onClick={() => handleStageChange(lead.id, "Approved")}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            className="rounded-full bg-amber-500 px-3 py-1.5 text-white shadow-sm shadow-amber-200 transition hover:bg-amber-400"
+                            onClick={() => handleNeedInfo(lead.id)}
+                          >
+                            Need Info
+                          </button>
+                          <button
+                            className="rounded-full bg-rose-500 px-3 py-1.5 text-white shadow-sm shadow-rose-200 transition hover:bg-rose-400"
+                            onClick={() => handleRejectLead(lead.id)}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
 
             <section className="mt-5 grid gap-4 lg:grid-cols-3">
-              <div className="lg:col-span-2 space-y-3">
+              <div className="space-y-3 lg:col-span-2">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-slate-800">My Leads</p>
@@ -909,59 +874,64 @@ export default function LeadManagementPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {filteredLeads.map((lead) => (
-                    <div
-                      key={lead.id}
-                      className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">
-                            {lead.name.charAt(0).toUpperCase()}
+                  {filteredLeads.map((lead) => {
+                    const displayName = lead.customer || lead.owner;
+                    const initial = displayName.charAt(0).toUpperCase();
+                    return (
+                      <button
+                        key={lead.id}
+                        onClick={() => handleSelectLead(lead.id)}
+                        className="w-full rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">
+                              {initial}
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">{displayName}</p>
+                              <p className="text-xs text-slate-500">Lead ID: {lead.id}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{lead.name}</p>
-                            <p className="text-xs text-slate-500">Lead ID: {lead.id}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
-                            {lead.modelLabel}: {lead.modelValue}
-                          </span>
-                          {lead.statusTag && (
-                            <span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-600">
-                              {lead.statusTag}
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                              {lead.product}
                             </span>
-                          )}
+                            {lead.statusTag && (
+                              <span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-600">
+                                {lead.statusTag}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2" />
-                      </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-800">{lead.nextAction}</span>
-                        <span className="text-xs text-slate-500">Next Action</span>
-                      </div>
-                    </div>
-                  ))}
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="text-sm font-semibold text-slate-800">{lead.nextAction}</span>
+                          <span className="text-xs text-slate-500">Next Action</span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100">
                   <p className="text-sm font-semibold text-slate-800">Pending Approvals</p>
-                  <p className="mt-2 text-xs text-slate-500">No pending approvals.</p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {pendingApprovals.length ? `${pendingApprovals.length} awaiting decision` : "No pending approvals."}
+                  </p>
                 </div>
                 {selectedLead && (
-                  <div
-                    ref={detailRef}
-                    className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg"
-                  >
+                  <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-100 transition hover:-translate-y-[1px] hover:shadow-lg">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-slate-800">Selected Lead</p>
                       <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
                         {selectedLead.stage}
                       </span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">{selectedLead.name} · {selectedLead.id}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {selectedLead.customer} · {selectedLead.id}
+                    </p>
                     <p className="mt-2 text-sm font-semibold text-slate-800">Next: {selectedLead.nextAction}</p>
                     <div className="mt-3 grid gap-2 text-xs font-semibold text-slate-600">
                       <label className="space-y-1">
@@ -1075,27 +1045,18 @@ function LeadToast({ message }: { message: string }) {
   return (
     <div className="pointer-events-none fixed inset-0 z-50 flex items-start justify-center">
       <div
-        className="mt-10 rounded-3xl bg-linear-to-r from-cyan-200 via-cyan-300 to-sky-300 px-6 py-4 text-sm font-semibold text-slate-900 shadow-[0_15px_40px_rgba(14,165,233,0.35)] backdrop-blur"
+        className="mt-10 rounded-3xl bg-gradient-to-r from-cyan-200 via-cyan-300 to-sky-300 px-6 py-4 text-sm font-semibold text-slate-900 shadow-[0_15px_40px_rgba(14,165,233,0.35)] backdrop-blur"
         style={{
           animation: "toastPop 220ms ease, toastFade 320ms ease 2.7s forwards",
         }}
       >
         <div className="flex items-center gap-3">
           <span className="grid h-9 w-9 place-items-center rounded-full bg-white/70 text-base font-bold text-cyan-700 shadow-inner shadow-cyan-100">
-            ✓
+            !
           </span>
           <p className="text-base font-semibold leading-snug">{message}</p>
         </div>
-      )}
-
-      {toast && (
-        <div className="pointer-events-auto fixed bottom-6 right-6 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-lg shadow-slate-200">
-          {toast}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
-
-
-
