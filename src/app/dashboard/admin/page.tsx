@@ -418,6 +418,12 @@ function WeeklySalesBar({
   details: typeof weeklySalesDetails;
 }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 80);
+    return () => clearTimeout(timer);
+  }, [data]);
 
   return (
     <div className="mt-4">
@@ -426,7 +432,15 @@ function WeeklySalesBar({
           <div
             key={index}
             className="group relative flex-1 rounded-2xl bg-gradient-to-t from-indigo-200 to-indigo-500 transition duration-200 hover:from-rose-200 hover:to-rose-500 hover:shadow-lg"
-            style={{ height: `${height + 80}px` }}
+            style={{
+              height: `${height + 80}px`,
+              transform: isMounted ? "scaleY(1)" : "scaleY(0)",
+              transformOrigin: "bottom",
+              transition:
+                "transform 700ms cubic-bezier(0.19, 1, 0.22, 1), opacity 700ms ease",
+              transitionDelay: `${index * 60}ms`,
+              opacity: isMounted ? 1 : 0.35,
+            }}
             onMouseEnter={() => setHoverIndex(index)}
             onMouseLeave={() => setHoverIndex(null)}
           >
