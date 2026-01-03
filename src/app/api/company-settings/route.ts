@@ -98,7 +98,11 @@ export async function GET() {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to load company data.";
-    return NextResponse.json({ message }, { status: 500 });
+    console.error("[api/company-settings] falling back with warning:", message);
+    return NextResponse.json(
+      { settings: null, team: [], warning: message },
+      { status: 200 },
+    );
   }
 }
 

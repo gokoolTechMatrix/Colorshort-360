@@ -67,11 +67,8 @@ export async function POST(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to ensure user.";
-    return NextResponse.json(
-      { ok: false, message },
-      {
-        status: 500,
-      },
-    );
+    console.warn("[api/ensure-user] fallback ensure:", message);
+    // Permit local fallback to proceed instead of failing the login flow.
+    return NextResponse.json({ ok: false, fallback: true, message });
   }
 }

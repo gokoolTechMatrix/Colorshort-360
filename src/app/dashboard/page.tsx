@@ -2,6 +2,7 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getRoleFromEmail } from "@/lib/role-map";
+import { resolveRoleFromEmail } from "@/lib/local-auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -22,50 +23,36 @@ export default function DashboardRouter() {
     let isMounted = true;
 
     const hydrate = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!isMounted) return;
-      if (!data.session) {
-        router.replace("/login");
-        return;
-      }
-      const user = data.session.user;
-      const role =
-        (user.user_metadata?.role as string | undefined) ??
-        getRoleFromEmail(user.email) ??
-        (await fetchRole(user.id));
-      const slug = slugifyRole(role);
-
-      if (
-        user.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
-        slug === "super_admin"
-      ) {
-        router.replace("/dashboard/admin");
-        return;
-      }
-
-      if (!slug) {
-        setMessage("No dashboard is configured for this account.");
-        return;
-      }
-      router.replace(`/dashboard/${slug}`);
-    };
-
-    const fetchRole = async (userId: string) => {
       try {
-        const response = await fetch("/api/user-role", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ userId }),
-        });
-        if (!response.ok) {
-          return "";
+        const { data } = await supabase.auth.getSession();
+        if (!isMounted) return;
+        if (!data.session) {
+          router.replace("/login");
+          return;
         }
-        const payload = (await response.json()) as { role?: string | null };
-        return payload.role ?? "";
-      } catch {
-        return "";
+        const user = data.session.user;
+        const role =
+          (user.user_metadata?.role as string | undefined) ??
+          getRoleFromEmail(user.email) ??
+          resolveRoleFromEmail(user.email);
+        const slug = slugifyRole(role);
+
+        if (
+          user.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
+          slug === "super_admin"
+        ) {
+          router.replace("/dashboard/admin");
+          return;
+        }
+
+        if (!slug) {
+          setMessage("No dashboard is configured for this account.");
+          return;
+        }
+        router.replace(`/dashboard/${slug}`);
+      } catch (error) {
+        if (!isMounted) return;
+        setMessage("Unable to load your dashboard. Please retry or sign in again.");
       }
     };
 

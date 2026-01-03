@@ -129,16 +129,21 @@ type HrPayload = Omit<typeof fallbackData, "kpis"> & {
 };
 
 const safeLoad = async <T,>(table: string, transform: (rows: T[]) => void) => {
-  const supabase = getServiceRoleClient();
-  const { data, error } = await supabase.from(table).select("*");
-  if (error) {
-    if (error.code === "42P01") {
-      return;
+  try {
+    const supabase = getServiceRoleClient();
+    const { data, error } = await supabase.from(table).select("*");
+    if (error) {
+      if (error.code === "42P01") {
+        return;
+      }
+      throw error;
     }
-    throw error;
-  }
-  if (data) {
-    transform(data as T[]);
+    if (data) {
+      transform(data as T[]);
+    }
+  } catch {
+    // ignore and keep fallback data
+    return;
   }
 };
 

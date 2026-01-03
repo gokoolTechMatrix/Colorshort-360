@@ -4,7 +4,7 @@ import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getRoleFromEmail } from "@/lib/role-map";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 const SUPER_ADMIN_EMAIL =
@@ -52,7 +52,7 @@ type DashboardLead = {
   temperature: "Hot" | "Warm";
 };
 
-export default function SalesCoordinatorAddLeadPage() {
+function SalesCoordinatorAddLeadPageContent() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1189,4 +1189,12 @@ function DashboardTab({
   );
 
   return <div className="mt-6 space-y-6">{view === "overview" ? renderOverview() : renderClient360()}</div>;
+}
+
+export default function SalesCoordinatorAddLeadPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-center text-slate-600">Loading lead workspace...</div>}>
+      <SalesCoordinatorAddLeadPageContent />
+    </Suspense>
+  );
 }

@@ -66,9 +66,12 @@ export default function LoginPage() {
       }
       const user = data.user;
       const mappedRole = getRoleFromEmail(user?.email);
-      const roleFetch = fetchRole(user?.id);
+      const usedFallback = Boolean(user?.user_metadata?.fallbackAuth);
+      const roleFetch = usedFallback ? null : fetchRole(user?.id);
       const role =
-        user?.user_metadata?.role ?? mappedRole ?? (await roleFetch);
+        user?.user_metadata?.role ??
+        mappedRole ??
+        (roleFetch ? await roleFetch : undefined);
       const slug = slugifyRole(role);
       if (
         user?.email?.toLowerCase() === superAdminEmail ||

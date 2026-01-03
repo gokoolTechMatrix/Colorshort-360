@@ -3,6 +3,7 @@
 import { DashboardSidebar, SidebarLink } from "@/components/dashboard/sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getRoleFromEmail } from "@/lib/role-map";
+import { resolveRoleFromEmail } from "@/lib/local-auth";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent, ReactElement, ReactNode } from "react";
@@ -29,6 +30,7 @@ type SalesManagerTab =
   | "reports";
 type SalesTabIcon = "layout" | "check" | "doc" | "stack" | "user" | "chart";
 type PastelTone = "indigo" | "sky" | "emerald" | "amber" | "violet" | "rose";
+type TableColumn = { key: string; label: string; align?: "left" | "right" };
 
 const salesManagerTabs: { id: SalesManagerTab; label: string; icon: SalesTabIcon }[] = [
   { id: "overview", label: "Dashboard overview", icon: "layout" },
@@ -200,63 +202,57 @@ export default function RoleDashboardPage() {
   useEffect(() => {
     let active = true;
     const hydrate = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!active) return;
-
-      if (!data.session) {
-        router.replace("/login");
-        return;
-      }
-
-      const user = data.session.user;
-      const fetchedRole =
-        (user.user_metadata?.role as string | undefined) ??
-        getRoleFromEmail(user.email) ??
-        (await fetchRole(user.id));
-      const computedSlug = slugifyRole(fetchedRole);
-      const isSuperAdmin =
-        user.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
-        computedSlug === "super_admin";
-
-      setRoleSlug(computedSlug);
-      const derivedName =
-        (user.user_metadata?.full_name as string | undefined) ?? "Team Member";
-      setProfileName(derivedName);
-
-      if (isSuperAdmin) {
-        router.replace("/dashboard/admin");
-        return;
-      }
-
-      if (!computedSlug) {
-        setIsChecking(false);
-        return;
-      }
-
-      if (requestedSlug !== computedSlug) {
-        router.replace(`/dashboard/${computedSlug}`);
-        return;
-      }
-
-      setIsChecking(false);
-    };
-
-    const fetchRole = async (userId: string) => {
       try {
-        const response = await fetch("/api/user-role", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ userId }),
-        });
-        if (!response.ok) {
-          return "";
+        const { data } = await supabase.auth.getSession();
+        if (!active) return;
+
+        if (!data.session) {
+          router.replace("/login");
+          setIsChecking(false);
+          return;
         }
-        const payload = (await response.json()) as { role?: string | null };
-        return payload.role ?? "";
-      } catch {
-        return "";
+
+        const user = data.session.user;
+        const fetchedRole =
+          (user.user_metadata?.role as string | undefined) ??
+          getRoleFromEmail(user.email) ??
+          resolveRoleFromEmail(user.email);
+        const computedSlug = slugifyRole(fetchedRole);
+        const isSuperAdmin =
+          user.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
+          computedSlug === "super_admin";
+
+        setRoleSlug(computedSlug);
+        const derivedName =
+          (user.user_metadata?.full_name as string | undefined) ?? "Team Member";
+        setProfileName(derivedName);
+
+        if (isSuperAdmin) {
+          router.replace("/dashboard/admin");
+          return;
+        }
+
+        const requestedOrComputed = slugifyRole(requestedSlug) || computedSlug;
+        const finalSlug = computedSlug || requestedOrComputed;
+
+        if (!finalSlug) {
+          setIsChecking(false);
+          return;
+        }
+
+        if (requestedSlug !== finalSlug) {
+          router.replace(`/dashboard/${finalSlug}`);
+          return;
+        }
+
+        setIsChecking(false);
+      } catch (error) {
+        if (!active) return;
+        // If anything fails, allow offline rendering with best-effort slug
+        const fallbackSlug = slugifyRole(requestedSlug) || "sales-executive";
+        setRoleSlug(fallbackSlug);
+        setProfileName("Team Member");
+        setIsChecking(false);
       }
     };
 
@@ -1575,7 +1571,7 @@ const approvalsQueue = pendingApprovals.map((item) => ({
     { label: "Discount approvals", value: "2 pending", tone: "amber" },
   ];
 
-  const orderColumns = [
+  const orderColumns: TableColumn[] = [
     { key: "id", label: "Order Sheet" },
     { key: "lead", label: "Lead" },
     { key: "model", label: "Model" },
@@ -1585,7 +1581,7 @@ const approvalsQueue = pendingApprovals.map((item) => ({
     { key: "on", label: "Submitted On" },
     { key: "action", label: "Action", align: "right" },
   ];
-  const approvalColumns = [
+  const approvalColumns: TableColumn[] = [
     { key: "id", label: "Quotation ID" },
     { key: "lead", label: "Lead" },
     { key: "requestedBy", label: "Requested By" },
@@ -1597,7 +1593,7 @@ const approvalsQueue = pendingApprovals.map((item) => ({
     { key: "action", label: "Action", align: "right" },
   ];
 
-  const recentColumns = [
+  const recentColumns: TableColumn[] = [
     { key: "id", label: "Quotation ID" },
     { key: "lead", label: "Lead" },
     { key: "model", label: "Approved Model" },
@@ -1606,7 +1602,7 @@ const approvalsQueue = pendingApprovals.map((item) => ({
     { key: "approvedOn", label: "Approved On" },
   ];
 
-  const leadColumns = [
+  const leadColumns: TableColumn[] = [
     { key: "client", label: "Client" },
     { key: "lead", label: "Lead" },
     { key: "stage", label: "Stage" },
@@ -1743,7 +1739,7 @@ const recentRows = filteredRecentApprovals.map((item) => ({
     detail,
   }: {
     title: string;
-    columns: { key: string; label: string; align?: "left" | "right" }[];
+    columns: TableColumn[];
     rows: Record<string, ReactNode>[];
     detail?: ReactNode;
   }) => (
